@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.22",
+    "@supabase/supabase-js": "^2.118.0",
     "expo": "~58.0.17",
     "expo-constants": "~58.0.13",
     "expo-device": "~58.0.5",
@@ -12,6 +13,7 @@
     "expo-image": "~58.0.16",
     "expo-linking": "~58.0.14",
     "expo-router": "~58.0.25",
+    "expo-secure-store": "^58.0.2",
     "expo-splash-screen": "~58.0.11",
     "expo-status-bar": "~58.0.4",
     "expo-symbols": "~58.0.4",
@@ -27,17 +29,18 @@
     "react-native-web": "~0.21.4",
     "react-native-worklets": "0.13.0"
   },
-  "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3"
-  },
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node ./scripts/test-profile-validation.mjs && node ./scripts/test-task-validation.mjs && node ./scripts/test-timetable-validation.mjs && node ./scripts/test-attendance-validation.mjs && node ./scripts/test-baseline-attendance.mjs && node ./scripts/test-attendance-prediction.mjs && node ./scripts/test-streak-calculator.mjs && node ./scripts/test-ocr-validation.mjs && node ./scripts/test-holiday-service.mjs && node ./scripts/test-reward-service.mjs && node ./scripts/test-social-privacy.mjs"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
+    "eslint-import-resolver-alias": "^1.1.2"
+  }
 }

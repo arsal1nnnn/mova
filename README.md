@@ -1,56 +1,143 @@
-# Welcome to your Expo app 👋
+# Mova
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A production-oriented college routine and productivity app built with React Native + Expo.
 
-## Get started
+---
 
-1. Install dependencies
+## Tech stack
 
-   ```bash
-   npm install
-   ```
+| Layer | Choice |
+|-------|--------|
+| Framework | React Native + Expo SDK 58 |
+| Navigation | Expo Router (file-based) |
+| Language | JavaScript (`.js` / `.jsx`) |
+| Backend | Supabase + PostgreSQL |
+| Session storage | expo-secure-store |
+| Package manager | npm |
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Prerequisites
 
-In the output, you'll find options to open the app in a
+- Node.js ≥ 18
+- npm ≥ 10
+- Expo Go app on your device **or** Android/iOS emulator
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Setup
 
-## Get a fresh project
-
-When you're ready, run:
+### 1. Clone and install
 
 ```bash
-npm run reset-project
+git clone <repo-url>
+cd mova
+npm install
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+### 2. Configure environment variables
 
-### Other setup steps
+```bash
+cp .env.example .env
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Edit `.env` and fill in your Supabase values:
 
-## Learn more
+| Variable | Where to find it |
+|----------|-----------------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API |
 
-To learn more about developing your project with Expo, look at the following resources:
+> ⚠️ **Never commit `.env`.** It is in `.gitignore`. Only `.env.example` (with placeholders) is committed.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## Running the app
 
-Join our community of developers creating universal apps.
+```bash
+# Start the Expo development server
+npm start
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Open on Android emulator / device
+npm run android
+
+# Open on iOS simulator / device (macOS only)
+npm run ios
+
+# Open in the browser
+npm run web
+```
+
+Scan the QR code with the **Expo Go** app on your phone to run on a real device.
+
+---
+
+## Project structure
+
+```
+mova/
+├── assets/
+│   ├── fonts/          # Custom font files (.ttf / .otf)
+│   └── images/         # App icons, splash, static images
+│
+├── src/
+│   ├── app/            # Expo Router routes (_layout.jsx, index.jsx, ...)
+│   ├── components/     # Reusable UI components
+│   │   └── ui/         # Primitive / generic building blocks
+│   ├── constants/      # Template-level constants (legacy theme.js)
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # External service clients (supabase.js, ...)
+│   ├── services/       # Domain service modules (auth, tasks, ...)
+│   ├── theme/          # Mova design tokens (index.js)
+│   └── utils/          # Pure utility functions
+│
+├── .env.example        # Environment variable template
+├── app.json            # Expo project configuration
+└── package.json
+```
+
+---
+
+## Naming conventions
+
+| Artifact | Convention | Example |
+|----------|-----------|---------|
+| Files & folders | `kebab-case` | `use-theme.js` |
+| Components | `PascalCase` | `ThemedText` |
+| Hooks | `camelCase` prefixed with `use` | `useTheme` |
+| Constants | `SCREAMING_SNAKE_CASE` for true constants, `PascalCase` for object exports | `Colors`, `Spacing` |
+| Services | `camelCase` module + named exports | `authService.js` |
+
+---
+
+## Supabase
+
+The Supabase client is initialised in `src/lib/supabase.js`. If the environment variables are missing, the client exports `null` and logs a warning — the app still starts but all Supabase calls will be no-ops until you configure `.env`.
+
+### Tables
+
+Migrations live in `supabase/migrations/` and must be applied in order:
+
+| Migration | Table | Purpose |
+|-----------|-------|---------|
+| `20261025000000_create_profiles.sql` | `public.profiles` | User profile linked 1-to-1 with `auth.users` |
+| `20261026000000_create_tasks.sql` | `public.tasks` | Daily Focus tasks and recurrence |
+| `20261027000000_create_classes.sql` | `public.classes` | Recurring weekly timetable slots |
+
+Every table has Row Level Security enabled with separate `select` / `insert` / `update` / `delete` policies scoped to `(select auth.uid()) = user_id`, so each user can only read and modify their own data. See [supabase/README.md](supabase/README.md) for the migration workflow.
+
+Apply them locally with `npx supabase start && npx supabase migration up`, or remotely with `npx supabase db push` after linking the project.
+
+---
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start the Expo dev server |
+| `npm run android` | Start + open Android |
+| `npm run ios` | Start + open iOS |
+| `npm run web` | Start + open browser |
+| `npm test` | Run profile, task and timetable validation unit tests |
+| `npm run lint` | Run Expo's ESLint configuration |
+| `npm run reset-project` | Reset to blank template (destructive) |

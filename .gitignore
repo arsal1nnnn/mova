@@ -30,14 +30,23 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Local env files — NEVER commit real credentials
+.env
+.env.local
+.env.*.local
 
-# typescript
+# typescript build artifacts
 *.tsbuildinfo
 
-example
-
-# generated native folders
+# Generated native folders (managed workflow — do not commit)
 /ios
 /android
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Build artifacts
+*.ipa
+*.apk
+*.aab
