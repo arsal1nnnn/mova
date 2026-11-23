@@ -236,12 +236,110 @@ export function calculateAge(dobString, referenceDate = new Date()) {
   return age >= 0 ? age : null;
 }
 
+export const USERNAME_MIN_LENGTH = 3;
+export const USERNAME_MAX_LENGTH = 20;
+export const USERNAME_REGEX = /^[a-z0-9]{3,20}$/;
+
+/**
+ * Validates a student username strictly:
+ * - Only lowercase English letters (a-z) and digits (0-9).
+ * - No uppercase letters, spaces, underscores, hyphens, or punctuation.
+ * - Length between 3 and 20 characters inclusive.
+ * - Reports whether input was transformed from uppercase or had whitespace trimmed.
+ *
+ * @param {unknown} rawInput
+ * @returns {{ isValid: boolean, error: string | null, sanitizedValue: string, wasTransformed: boolean }}
+ */
+export function validateUsername(rawInput) {
+  if (typeof rawInput !== 'string') {
+    return {
+      isValid: false,
+      error: 'Username must be a text string.',
+      sanitizedValue: '',
+      wasTransformed: false,
+    };
+  }
+
+  const trimmed = rawInput.trim();
+  const lower = trimmed.toLowerCase();
+  const wasTransformed = rawInput !== lower;
+
+  if (lower.length === 0) {
+    return {
+      isValid: false,
+      error: 'Username cannot be empty.',
+      sanitizedValue: '',
+      wasTransformed,
+    };
+  }
+
+  if (lower.length < USERNAME_MIN_LENGTH) {
+    return {
+      isValid: false,
+      error: `Username must be at least ${USERNAME_MIN_LENGTH} characters.`,
+      sanitizedValue: lower,
+      wasTransformed,
+    };
+  }
+
+  if (lower.length > USERNAME_MAX_LENGTH) {
+    return {
+      isValid: false,
+      error: `Username cannot exceed ${USERNAME_MAX_LENGTH} characters.`,
+      sanitizedValue: lower.slice(0, USERNAME_MAX_LENGTH),
+      wasTransformed,
+    };
+  }
+
+  if (!USERNAME_REGEX.test(lower)) {
+    return {
+      isValid: false,
+      error: 'Username can only contain lowercase letters (a-z) and numbers (0-9). No spaces, underscores, or symbols allowed.',
+      sanitizedValue: lower.replace(/[^a-z0-9]/g, '').slice(0, USERNAME_MAX_LENGTH),
+      wasTransformed,
+    };
+  }
+
+  return {
+    isValid: true,
+    error: null,
+    sanitizedValue: lower,
+    wasTransformed,
+  };
+}
+
+/**
+ * Generates an initial suggested username based on a student display name or email.
+ * Ensures the result matches /^[a-z0-9]{3,20}$/.
+ *
+ * @param {string} nameOrEmail
+ * @returns {string}
+ */
+export function generateSuggestedUsername(nameOrEmail) {
+  if (!nameOrEmail || typeof nameOrEmail !== 'string') {
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    return `student${randomSuffix}`;
+  }
+
+  const base = nameOrEmail
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 15);
+
+  const cleanBase = base.length >= 3 ? base : 'student';
+  const randomSuffix = Math.floor(10 + Math.random() * 89);
+  const combined = `${cleanBase}${randomSuffix}`;
+
+  return combined.slice(0, USERNAME_MAX_LENGTH);
+}
+
 /**
  * Validates complete profile input payload.
  *
- * @param {{ name?: unknown, date_of_birth?: unknown, avatar_url?: unknown }} input
+ * @param {{ name?: unknown, username?: unknown, date_of_birth?: unknown, avatar_url?: unknown }} input
  * @param {Date} [referenceDate=new Date()]
- * @returns {{ isValid: boolean, errors: Record<string, string>, sanitizedData: { name: string, date_of_birth: string, avatar_url: string | null } }}
+ * @returns {{ isValid: boolean, errors: Record<string, string>, sanitizedData: { name: string, username?: string, date_of_birth: string, avatar_url: string | null } }}
  */
 export function validateProfileInput(input = {}, referenceDate = new Date()) {
   const errors = {};
@@ -249,6 +347,16 @@ export function validateProfileInput(input = {}, referenceDate = new Date()) {
   const nameValidation = validateDisplayName(input.name);
   if (!nameValidation.isValid) {
     errors.name = nameValidation.error;
+  }
+
+  let sanitizedUsername;
+  if (input.username !== undefined && input.username !== null) {
+    const userVal = validateUsername(input.username);
+    if (!userVal.isValid) {
+      errors.username = userVal.error;
+    } else {
+      sanitizedUsername = userVal.sanitizedValue;
+    }
   }
 
   const dobValidation = validateDateOfBirth(input.date_of_birth, referenceDate);
@@ -266,6 +374,7 @@ export function validateProfileInput(input = {}, referenceDate = new Date()) {
     errors,
     sanitizedData: {
       name: nameValidation.sanitizedValue,
+      ...(sanitizedUsername ? { username: sanitizedUsername } : {}),
       date_of_birth: dobValidation.sanitizedValue,
       avatar_url: avatarValidation.sanitizedValue,
     },

@@ -303,7 +303,7 @@ export default function AttendanceScreen() {
     : null;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer scrollable style={{ paddingBottom: 100 }}>
       <PageHeader
         title="Attendance & Bunks"
         subtitle={`${subjects.length} subject${subjects.length !== 1 ? 's' : ''} tracked`}

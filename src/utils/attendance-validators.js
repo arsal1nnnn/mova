@@ -480,13 +480,19 @@ export function buildAttendanceSummary(records = [], targetPercentage = DEFAULT_
 
 /**
  * Formats an attendance percentage for display (e.g. "78.50%").
+ * Returns '—' if value cannot be calculated or if totalClasses is 0.
  *
- * @param {number} percentage
+ * @param {number|string} percentage
+ * @param {number} [totalClasses]
  * @returns {string}
  */
-export function formatAttendancePercentage(percentage) {
-  if (!Number.isFinite(percentage)) return '—';
-  return `${percentage.toFixed(2)}%`;
+export function formatAttendancePercentage(percentage, totalClasses) {
+  if (totalClasses !== undefined && totalClasses !== null && Number(totalClasses) <= 0) {
+    return '—';
+  }
+  const numeric = typeof percentage === 'number' ? percentage : parseFloat(percentage);
+  if (!Number.isFinite(numeric)) return '—';
+  return `${numeric.toFixed(2)}%`;
 }
 
 /**

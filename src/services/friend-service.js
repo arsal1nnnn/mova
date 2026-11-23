@@ -320,6 +320,80 @@ export const friendService = {
   },
 
   /**
+   * Unblocks a previously blocked user.
+   */
+  async unblockUser(targetUserId) {
+    if (!this.isConfigured() || !targetUserId) return { success: false };
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false };
+
+      const { error } = await supabase
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', targetUserId);
+
+      return { success: !error, error };
+    } catch (err) {
+      return { success: false, error: err };
+    }
+  },
+
+  /**
+   * Retrieves the list of users blocked by the authenticated user.
+   */
+  async getBlockedUsers() {
+    if (!this.isConfigured()) return { blockedUsers: [], error: null };
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { blockedUsers: [], error: null };
+
+      const { data, error } = await supabase
+        .from('user_blocks')
+        .select(`
+          id,
+          blocked_id,
+          created_at,
+          blocked:profiles!user_blocks_blocked_id_fkey(id, name, username, avatar_url)
+        `)
+        .eq('blocker_id', user.id);
+
+      if (error) {
+        // Fallback without relation join if foreign key naming differs
+        const { data: simpleBlocks, error: simpleErr } = await supabase
+          .from('user_blocks')
+          .select('id, blocked_id, created_at')
+          .eq('blocker_id', user.id);
+
+        if (simpleErr) return { blockedUsers: [], error: simpleErr };
+
+        const blockedIds = (simpleBlocks || []).map((b) => b.blocked_id);
+        if (blockedIds.length === 0) return { blockedUsers: [], error: null };
+
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url')
+          .in('id', blockedIds);
+
+        const profMap = new Map((profs || []).map((p) => [p.id, p]));
+        const merged = (simpleBlocks || []).map((b) => ({
+          ...b,
+          blocked: profMap.get(b.blocked_id) || { id: b.blocked_id, name: 'Blocked Student', username: 'student' },
+        }));
+
+        return { blockedUsers: merged, error: null };
+      }
+
+      return { blockedUsers: data || [], error: null };
+    } catch (err) {
+      return { blockedUsers: [], error: err };
+    }
+  },
+
+  /**
    * Reports a user for abusive behavior.
    */
   async reportUser(targetUserId, reason = 'abusive_behavior', details = '') {

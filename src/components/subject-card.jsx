@@ -102,9 +102,9 @@ export function SubjectCard({
           <ThemedText
             type="progressNumber"
             style={{
-              color: summary.status === 'no_data' ? theme.textMuted : statusColors.text,
+              color: summary.status === 'no_data' || summary.totalClasses === 0 ? theme.textMuted : statusColors.text,
             }}>
-            {summary.totalClasses > 0 ? formatAttendancePercentage(summary.percentage) : '—'}
+            {formatAttendancePercentage(summary.percentage, summary.totalClasses)}
           </ThemedText>
           <View
             style={[
@@ -225,6 +225,25 @@ export function SubjectCard({
               : summary.classesToRecover > 0
               ? `Attend next ${summary.classesToRecover} consecutive class${summary.classesToRecover !== 1 ? 'es' : ''} to reach ${targetPct}%.`
               : `Exactly on target (${targetPct}%). Do not miss the next lecture.`}
+          </ThemedText>
+        </View>
+      )}
+
+      {/* Zero Classes Helpful Explanation */}
+      {summary.totalClasses === 0 && (
+        <View
+          style={[
+            styles.adviceBanner,
+            {
+              backgroundColor: theme.primarySubtle,
+              borderColor: theme.border,
+            },
+          ]}>
+          <MovaIcon name="sparkle" size={14} color={theme.primary} />
+          <ThemedText
+            type="caption"
+            style={[styles.adviceText, { color: theme.textSecondary, fontWeight: '500' }]}>
+            No attendance records yet. Mark today&apos;s lecture below or enter an initial baseline in Edit.
           </ThemedText>
         </View>
       )}

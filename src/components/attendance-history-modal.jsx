@@ -101,9 +101,13 @@ function HistoryContent({ subject, records, onToggle, onDeleteRecord, onAddRecor
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <ThemedText type="h3" numberOfLines={2}>{subject?.name}</ThemedText>
-            {summary && summary.totalClasses > 0 && (
+            {summary && summary.totalClasses > 0 ? (
               <ThemedText type="caption" themeColor="textSecondary">
-                {formatAttendancePercentage(summary.percentage)} · {getAttendanceStatusLabel(summary.status)} · Target {subject.target_percentage}%
+                {formatAttendancePercentage(summary.percentage, summary.totalClasses)} · {getAttendanceStatusLabel(summary.status)} · Target {subject.target_percentage}%
+              </ThemedText>
+            ) : (
+              <ThemedText type="caption" themeColor="textMuted">
+                No classes recorded · Target {subject?.target_percentage || 75}%
               </ThemedText>
             )}
           </View>

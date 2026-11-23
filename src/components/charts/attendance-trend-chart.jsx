@@ -67,8 +67,8 @@ export function AttendanceTrendChart({ subjects = [], style }) {
                   {sub.name}
                 </ThemedText>
                 <View style={styles.metaRight}>
-                  <ThemedText type="caption" style={{ fontWeight: '700', color: barColor }}>
-                    {formatAttendancePercentage(pct)}
+                  <ThemedText type="caption" style={{ fontWeight: '700', color: summary.totalClasses > 0 ? barColor : theme.textMuted }}>
+                    {formatAttendancePercentage(pct, summary.totalClasses)}
                   </ThemedText>
                   <ThemedText type="caption" color="textMuted" style={{ marginLeft: 6 }}>
                     ({summary.attendedClasses}/{summary.totalClasses})

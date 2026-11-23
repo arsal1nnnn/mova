@@ -1,270 +1,205 @@
 /**
  * Mova Class Card Component
  *
- * Renders a single recurring class slot with a timeline rail,
- * subject/title details, clean room badge with MovaIcon, duration badge,
- * scheduling status (ongoing / up next / ended), and edit/delete actions.
+ * Matches Figma 03 · Timetable schedule row design:
+ * - Left time rail: 48px width (11px bold start time, 9px duration)
+ * - 3px vertical timeline marker (rounded 4px) with subject accent color
+ * - Pastel tinted card container (rounded 20px, px 15 py 14)
+ * - 12px semi-bold subject name, 10px subtitle (Type · Room)
  */
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { MovaIcon } from '@/components/mova-icon';
-import { ThemedButton } from '@/components/themed-button';
-import { ThemedCard } from '@/components/themed-card';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Borders, Radius, Spacing } from '@/theme';
-import {
-  formatClassDuration,
-  formatTime12h,
-  getClassStatus,
-  getWeekdayLabel,
-} from '@/utils/timetable-validators';
+import { Radius, Spacing } from '@/theme';
+import { formatClassDuration, formatTime12h } from '@/utils/timetable-validators';
+
+// Palette mapping for subject cards matching Figma
+const SUBJECT_PALETTES = [
+  {
+    bgLight: '#EAE4F7', // Soft Lavender
+    markerLight: '#75649B',
+    subTextLight: '#75649B',
+    bgDark: '#373044',
+    markerDark: '#D8C7F4',
+    subTextDark: '#D8C7F4',
+  },
+  {
+    bgLight: '#DDE8D8', // Muted Sage
+    markerLight: '#536B50',
+    subTextLight: '#536B50',
+    bgDark: '#1E281F',
+    markerDark: '#9FC09A',
+    subTextDark: '#9FC09A',
+  },
+  {
+    bgLight: '#FFF0E4', // Warm Peach
+    markerLight: '#EA580C',
+    subTextLight: '#EA580C',
+    bgDark: '#30251F',
+    markerDark: '#FF7A29',
+    subTextDark: '#FF7A29',
+  },
+  {
+    bgLight: '#E2E8F0', // Cool Slate
+    markerLight: '#475569',
+    subTextLight: '#475569',
+    bgDark: '#1E293B',
+    markerDark: '#94A3B8',
+    subTextDark: '#94A3B8',
+  },
+];
+
+function getSubjectPalette(subjectName, isDark) {
+  if (!subjectName) return SUBJECT_PALETTES[0];
+  let hash = 0;
+  for (let i = 0; i < subjectName.length; i++) {
+    hash = (hash + subjectName.charCodeAt(i)) % SUBJECT_PALETTES.length;
+  }
+  const item = SUBJECT_PALETTES[hash];
+  return {
+    bg: isDark ? item.bgDark : item.bgLight,
+    marker: isDark ? item.markerDark : item.markerLight,
+    subText: isDark ? item.subTextDark : item.subTextLight,
+  };
+}
 
 export function ClassCard({
   classSlot,
   onEdit,
   onDelete,
-  isNext = false,
-  showWeekday = false,
-  now = new Date(),
   style,
 }) {
   const theme = useTheme();
 
   if (!classSlot) return null;
 
-  const status = getClassStatus(classSlot, now);
-  const isOngoing = status === 'ongoing';
-  const durationLabel = formatClassDuration(classSlot);
+  const startTimeStr = classSlot.start_time ? classSlot.start_time.slice(0, 5) : '09:00';
+  const durationLabel = formatClassDuration(classSlot) || '50 min';
+  const palette = getSubjectPalette(classSlot.subject_name, theme.isDark);
 
-  const getStatusMeta = () => {
-    if (isOngoing) {
-      return {
-        label: 'In progress',
-        bg: theme.successBackground,
-        text: theme.success,
-        border: theme.success,
-        dot: theme.success,
-      };
-    }
-    if (isNext) {
-      return {
-        label: 'Up next',
-        bg: theme.primarySubtle,
-        text: theme.primary,
-        border: theme.borderFocus,
-        dot: theme.primary,
-      };
-    }
-    if (status === 'ended') {
-      return {
-        label: 'Ended',
-        bg: theme.surface,
-        text: theme.textMuted,
-        border: theme.border,
-        dot: theme.textMuted,
-      };
-    }
-    return null;
-  };
-
-  const statusMeta = getStatusMeta();
+  const roomText = classSlot.room ? `Room ${classSlot.room}` : null;
+  const titleText = classSlot.title || 'Lecture';
+  const subtitle = [titleText, roomText].filter(Boolean).join(' · ');
 
   return (
-    <ThemedCard
-      variant="outlined"
+    <View
       style={[
-        styles.card,
-        isOngoing && { borderColor: theme.success },
-        isNext && !isOngoing && { borderColor: theme.borderFocus },
+        styles.container,
         style,
       ]}>
-      <View style={styles.row}>
-        {/* Time rail */}
-        <View
-          style={[
-            styles.timeRail,
-            {
-              backgroundColor: isOngoing
-                ? theme.successBackground
-                : isNext
-                ? theme.primarySubtle
-                : theme.surface,
-              borderColor: isOngoing
-                ? theme.success
-                : isNext
-                ? theme.borderFocus
-                : theme.border,
-            },
-          ]}>
+      {/* Left Time Rail */}
+      <View style={styles.timeRail}>
+        <ThemedText type="captionStrong" style={styles.startTime}>
+          {startTimeStr}
+        </ThemedText>
+        <ThemedText type="caption" style={[styles.duration, { color: theme.textSecondary }]}>
+          {durationLabel}
+        </ThemedText>
+      </View>
+
+      {/* Vertical Timeline Marker */}
+      <View style={[styles.timelineMarker, { backgroundColor: palette.marker }]} />
+
+      {/* Class Details Card */}
+      <View style={[styles.detailsCard, { backgroundColor: palette.bg }]}>
+        <Pressable
+          onPress={() => onEdit?.(classSlot)}
+          accessibilityRole="button"
+          accessibilityLabel={`Class: ${classSlot.subject_name}`}
+          style={({ pressed }) => [styles.copyColPressable, pressed && styles.pressed]}>
           <ThemedText
             type="bodySmallStrong"
-            style={{
-              color: isOngoing
-                ? theme.success
-                : isNext
-                ? theme.primary
-                : theme.text,
-              fontSize: 12,
-            }}>
-            {formatTime12h(classSlot.start_time)}
-          </ThemedText>
-          <View style={[styles.timeRailLine, { backgroundColor: theme.borderStrong }]} />
-          <ThemedText type="caption" themeColor="textMuted" style={{ fontSize: 11 }}>
-            {formatTime12h(classSlot.end_time)}
-          </ThemedText>
-        </View>
-
-        {/* Details Body */}
-        <View style={styles.body}>
-          <View style={styles.badgeRow}>
-            {showWeekday && (
-              <View style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <ThemedText type="caption" style={[styles.chipText, { color: theme.textSecondary }]}>
-                  {getWeekdayLabel(classSlot.weekday)}
-                </ThemedText>
-              </View>
-            )}
-            {Boolean(classSlot.room) && (
-              <View style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <MovaIcon name="map-pin" size={11} color={theme.textMuted} />
-                <ThemedText type="caption" style={[styles.chipText, { color: theme.textSecondary }]}>
-                  {classSlot.room}
-                </ThemedText>
-              </View>
-            )}
-            {durationLabel ? (
-              <View style={[styles.chip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <MovaIcon name="clock" size={11} color={theme.textMuted} />
-                <ThemedText type="caption" style={[styles.chipText, { color: theme.textSecondary }]}>
-                  {durationLabel}
-                </ThemedText>
-              </View>
-            ) : null}
-            {statusMeta && (
-              <View
-                style={[
-                  styles.chip,
-                  { backgroundColor: statusMeta.bg, borderColor: statusMeta.border },
-                ]}>
-                <View style={[styles.statusDot, { backgroundColor: statusMeta.dot }]} />
-                <ThemedText
-                  type="caption"
-                  style={[styles.chipText, { color: statusMeta.text, fontWeight: '700' }]}>
-                  {statusMeta.label}
-                </ThemedText>
-              </View>
-            )}
-          </View>
-
-          <ThemedText type="bodyStrong" style={styles.subject} numberOfLines={2}>
+            style={[styles.subjectName, { color: theme.text }]}
+            numberOfLines={1}>
             {classSlot.subject_name}
           </ThemedText>
-
-          <ThemedText type="bodySmall" themeColor="textSecondary" numberOfLines={1}>
-            {classSlot.title}
+          <ThemedText
+            type="caption"
+            style={[styles.subtitle, { color: palette.subText }]}
+            numberOfLines={1}>
+            {subtitle}
           </ThemedText>
+        </Pressable>
 
-          {(onEdit || onDelete) && (
-            <View style={styles.actions}>
-              {onEdit && (
-                <ThemedButton
-                  title="Edit"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => onEdit(classSlot)}
-                  accessibilityLabel={`Edit ${classSlot.subject_name}`}
-                  style={styles.actionButton}
-                />
-              )}
-              {onDelete && (
-                <ThemedButton
-                  title="Delete"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => onDelete(classSlot)}
-                  accessibilityLabel={`Delete ${classSlot.subject_name}`}
-                  textStyle={{ color: theme.error }}
-                  style={styles.actionButton}
-                />
-              )}
-            </View>
-          )}
-        </View>
+        {onDelete && (
+          <Pressable
+            hitSlop={8}
+            onPress={() => onDelete(classSlot)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete class"
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}>
+            <MovaIcon name="x" size={13} color={palette.subText} />
+          </Pressable>
+        )}
       </View>
-    </ThemedCard>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: Spacing.sm,
-    marginBottom: Spacing.xs,
-    borderRadius: Radius.lg,
-  },
-  row: {
+  container: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: Spacing.sm,
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    marginVertical: 4,
+  },
+  copyColPressable: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  pressed: {
+    opacity: 0.92,
   },
   timeRail: {
-    width: 82,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: 4,
-    borderRadius: Radius.md,
-    borderWidth: Borders.thin,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  timeRailLine: {
-    width: 12,
-    height: 1,
-    marginVertical: 1,
-  },
-  body: {
-    flex: 1,
+    width: 48,
+    alignItems: 'flex-start',
     gap: 3,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 2,
+  startTime: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '700',
   },
-  chip: {
+  duration: {
+    fontSize: 9,
+    lineHeight: 11,
+  },
+  timelineMarker: {
+    width: 3,
+    height: 58,
+    borderRadius: 4,
+  },
+  detailsCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
-    borderWidth: Borders.thin,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderRadius: Radius.card, // Figma 20px
+    minHeight: 64,
+  },
+  copyCol: {
+    flex: 1,
     gap: 4,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius.full,
+  subjectName: {
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '600',
   },
-  chipText: {
-    fontSize: 11,
+  subtitle: {
+    fontSize: 10,
+    lineHeight: 12,
   },
-  subject: {
-    fontSize: 15,
-    lineHeight: 20,
-    letterSpacing: -0.1,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 2,
-    marginTop: Spacing.xxs,
-  },
-  actionButton: {
-    paddingVertical: 0,
-    paddingHorizontal: 6,
-    minHeight: 28,
+  deleteBtn: {
+    padding: 4,
+    marginLeft: 6,
   },
 });

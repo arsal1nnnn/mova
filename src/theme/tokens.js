@@ -1,48 +1,78 @@
 import { Platform } from 'react-native';
 
 /**
- * Mova Design Tokens — Canonical Design System Tokens
+ * Mova Design Tokens — Figma Reference Canonical Tokens
  *
- * Visual Direction: Editorial, warm cream, minimal modern college productivity.
- * Palette: Warm cream/off-white canvas, deep charcoal typography,
- * signature warm terracotta/orange accent used with restraint.
+ * Source: Figma File "Mova — Mobile App UI Reference" (5TbNUE6SjaeJJyfAj8s0Xu)
+ * Visual Direction: Warm, calm, focused, quietly playful, generous spacing.
+ *
+ * Light Theme:
+ * - Canvas Background: Warm Ivory (#FFF7ED)
+ * - Primary Brand Accent: Mova Orange (#EA580C)
+ * - Surfaces / Cards: Clean White (#FFFFFF, rounded 20px)
+ * - Text Primary: Deep Charcoal (#24211F)
+ * - Text Secondary: Warm Slate (#8B8179)
+ * - Subtle Borders: Warm Sand (#F0E6DC)
+ * - Accent Tints: Soft Lavender (#EAE4F7 / #75649B), Muted Sage (#DDE8D8 / #536B50), Warm Peach (#FFF0E4)
+ *
+ * Dark Theme:
+ * - Canvas Background: Midnight (#0B0D12)
+ * - Primary Brand Accent: Vibrant Warm Orange (#FF7A29)
+ * - Surfaces / Cards: Dark Surface (#1A202E, rounded 20px)
+ * - Text Primary: Off-White (#F5F3F0)
+ * - Text Secondary: Muted Silver (#A5A8B3)
+ * - Subtle Borders: Charcoal Slate (#2C3342)
+ * - Accent Tints: Dark Lavender (#373044 / #D8C7F4), Dark Sage (#253526 / #9FC09A), Dark Peach (#39271F)
  */
 
 // ---------------------------------------------------------------------------
-// 1. Primitive Palette (Internal scale — prefer semantic tokens)
+// 1. Primitive Palette
 // ---------------------------------------------------------------------------
 export const palette = {
   // Brand Warm Terracotta / Orange
-  brand50: '#FFF7ED',   // Ultra subtle warm tint (light mode active fills)
-  brand100: '#FFEDD5',  // Soft tint for badges/chips
-  brand200: '#FED7AA',
-  brand300: '#FDBA74',
-  brand400: '#FB923C',  // Playful energetic accent
-  brand500: '#FF7A29',  // Vibrant primary warm orange (dark mode primary)
-  brand600: '#EA580C',  // Warm orange hover / pressed
-  brand700: '#C8420B',  // High-contrast warm rust orange (light mode primary)
-  brand800: '#9A3412',  // Deep warm rust
+  brand50: '#FFF7ED',   // Warm Ivory canvas background
+  brand100: '#FFF0E4',  // Light chip / tint background
+  brand200: '#FCE7D7',  // Daily momentum light hero card
+  brand300: '#F4D3BC',  // Progress track background
+  brand400: '#FB923C',
+  brand500: '#FF7A29',  // Dark mode primary orange
+  brand600: '#EA580C',  // Light mode signature Mova Orange
+  brand700: '#C8420B',  // High-contrast pressed orange
+  brand800: '#9A3412',
   brand900: '#7C2D12',
 
-  // Gamification & Status Accents
-  streak: '#FF5722',
-  quest: '#8B5CF6',
-  xp: '#F59E0B',
-  level: '#10B981',
-
-  // Neutral Warm Charcoal Scale
+  // Neutrals (Light: Warm Charcoal, Dark: Midnight)
   neutral0: '#FFFFFF',
-  neutral50: '#FAF7F2',
-  neutral100: '#F4EFEA',
-  neutral200: '#EBE4D8',
-  neutral300: '#D6CCBC',
-  neutral400: '#A3988C',
-  neutral500: '#7E7467',
+  neutral50: '#FFF7ED',
+  neutral100: '#F7F2EC',
+  neutral200: '#F0E6DC', // Light border
+  neutral300: '#DDD8D0',
+  neutral400: '#A5A8B3', // Dark text secondary
+  neutral500: '#8B8179', // Light text secondary
   neutral600: '#5A5247',
   neutral700: '#3D352D',
-  neutral800: '#26201B',
-  neutral900: '#191512',
-  neutral950: '#0E0C0A',
+  neutral800: '#2C3342', // Dark border
+  neutral850: '#1A202E', // Dark surface
+  neutral900: '#24211F', // Light text primary
+  neutral950: '#0B0D12', // Dark midnight background
+  darkText: '#F5F3F0',   // Dark text primary
+
+  // Figma Accent Colors
+  lavenderLight: '#EAE4F7',
+  lavenderLightText: '#75649B',
+  lavenderDark: '#373044',
+  lavenderDarkText: '#D8C7F4',
+
+  sageLight: '#DDE8D8',
+  sageLightBg: '#E9EFE4',
+  sageLightText: '#536B50',
+  sageDark: '#1E281F',
+  sageDarkText: '#9FC09A',
+
+  // Dark momentum
+  momentumDarkCard: '#30251F',
+  momentumDarkChip: '#493024',
+  momentumDarkTrack: '#594034',
 };
 
 // ---------------------------------------------------------------------------
@@ -50,152 +80,210 @@ export const palette = {
 // ---------------------------------------------------------------------------
 export const Colors = {
   light: {
-    // Surfaces & Backgrounds (Refined Premium Light Palette)
-    background: '#FAF9F6',                 // Main canvas background
-    surface: '#FFFFFF',                    // Clean card & section surface
-    surfaceElevated: '#FFFFFF',            // Floating modals, elevated panels
-    card: '#FFFFFF',                       // Card canvas
-    cardElevated: '#FFFFFF',
-    backgroundElement: '#F4F2EE',          // Subtle element background
-    backgroundSelected: '#FDF1EB',         // Soft brand selection tint
-
-    // Text & Content
-    text: '#252321',                       // Main typography (Deep charcoal)
-    textSecondary: '#89847D',              // Secondary typography (Warm slate gray)
-    textMuted: '#A39E96',                  // Muted typography
-    textDisabled: '#C4BFB8',
-    textInverse: '#FFFFFF',
-
-    // Primary Brand Warm Accent (#E87532)
-    primary: '#E87532',                    // Signature warm terracotta orange
-    primaryHover: '#D46422',
-    primaryPressed: '#BF5517',
-    primarySubtle: '#FDF1EB',              // Warm accent tint
-    primaryText: '#FFFFFF',
-
-    // Secondary Action
-    secondary: '#F5F2EC',
-    secondaryPressed: '#EBE6DE',
-    secondaryText: '#252321',
-
-    // Borders, Outlines & Dividers (#EEEAE4)
-    border: '#EEEAE4',                     // Clean subtle structural border
-    borderStrong: '#DDD8D0',
-    borderFocus: '#E87532',                // Active focus border
-    divider: '#F5F2EC',
-
-    // Input States
-    inputBackground: '#FFFFFF',
-    inputBorder: '#EEEAE4',
-    inputBorderFocus: '#E87532',
-    inputPlaceholder: '#A39E96',
-
-    // Disabled State
-    disabled: '#F4F2EE',
-    disabledBorder: '#EEEAE4',
-
-    // Feedback Status
-    success: '#27866A',                    // Forest green
-    successBackground: '#F0F9F5',
-    warning: '#D69A35',                    // Warm golden amber
-    warningBackground: '#FEFAF0',
-    error: '#D95757',                      // Soft crimson red
-    errorBackground: '#FDF3F3',
-    info: '#2563EB',                       // Refined sapphire blue
-    infoBackground: '#EFF6FF',
-
-    // Status / Metagame Accents
-    streak: '#E87532',
-    quest: '#7C3AED',
-    xp: '#D69A35',
-    level: '#27866A',
-  },
-
-  dark: {
-    // Light mode everywhere: dark maps to the same premium light palette
-    background: '#FAF9F6',
-    surface: '#FFFFFF',
+    // Surfaces & Backgrounds
+    background: '#FFF7ED',                 // Warm Ivory canvas
+    surface: '#FFFFFF',                    // Card surface
     surfaceElevated: '#FFFFFF',
     card: '#FFFFFF',
     cardElevated: '#FFFFFF',
-    backgroundElement: '#F4F2EE',
-    backgroundSelected: '#FDF1EB',
+    backgroundElement: '#FFF0E4',          // Element chip tint
+    backgroundSelected: '#FFF0E4',
 
-    text: '#252321',
-    textSecondary: '#89847D',
-    textMuted: '#A39E96',
+    // Text & Content
+    text: '#24211F',                       // Deep charcoal
+    textSecondary: '#8B8179',              // Slate secondary
+    textMuted: '#A3988C',
     textDisabled: '#C4BFB8',
     textInverse: '#FFFFFF',
 
-    primary: '#E87532',
-    primaryHover: '#D46422',
-    primaryPressed: '#BF5517',
-    primarySubtle: '#FDF1EB',
+    // Primary Brand Warm Accent (#EA580C)
+    primary: '#EA580C',
+    primaryHover: '#C8420B',
+    primaryPressed: '#9A3412',
+    primarySubtle: '#FFF0E4',
     primaryText: '#FFFFFF',
 
-    secondary: '#F5F2EC',
-    secondaryPressed: '#EBE6DE',
-    secondaryText: '#252321',
+    // Secondary Action
+    secondary: '#F7F2EC',
+    secondaryPressed: '#EBE4DC',
+    secondaryText: '#24211F',
 
-    border: '#EEEAE4',
+    // Borders & Dividers
+    border: '#F0E6DC',
     borderStrong: '#DDD8D0',
-    borderFocus: '#E87532',
-    divider: '#F5F2EC',
+    borderFocus: '#EA580C',
+    divider: '#F0E6DC',
 
+    // Input States
     inputBackground: '#FFFFFF',
-    inputBorder: '#EEEAE4',
-    inputBorderFocus: '#E87532',
-    inputPlaceholder: '#A39E96',
+    inputBorder: '#F0E6DC',
+    inputBorderFocus: '#EA580C',
+    inputPlaceholder: '#8B8179',
 
-    disabled: '#F4F2EE',
-    disabledBorder: '#EEEAE4',
+    // Disabled State
+    disabled: '#F7F2EC',
+    disabledBorder: '#F0E6DC',
 
-    success: '#27866A',
-    successBackground: '#F0F9F5',
-    warning: '#D69A35',
-    warningBackground: '#FEFAF0',
+    // Figma Themed Accent Surfaces
+    momentumCard: '#FCE7D7',
+    momentumChip: '#FFFFFF',
+    momentumTrack: '#F4D3BC',
+    momentumFill: '#EA580C',
+
+    lavender: '#EAE4F7',
+    lavenderText: '#75649B',
+
+    sage: '#DDE8D8',
+    sageCard: '#E9EFE4',
+    sageText: '#536B50',
+
+    // Feedback Status
+    success: '#536B50',
+    successBackground: '#E9EFE4',
+    warning: '#EA580C',
+    warningBackground: '#FFF0E4',
     error: '#D95757',
     errorBackground: '#FDF3F3',
-    info: '#2563EB',
-    infoBackground: '#EFF6FF',
+    info: '#75649B',
+    infoBackground: '#EAE4F7',
 
-    streak: '#E87532',
-    quest: '#7C3AED',
-    xp: '#D69A35',
-    level: '#27866A',
+    // Bottom Navigation
+    bottomNavBg: '#FFFFFF',
+    bottomNavBorder: '#F0E6DC',
+    bottomNavActive: '#EA580C',
+    bottomNavInactive: '#8B8179',
+
+    // Status / Metagame
+    streak: '#EA580C',
+    quest: '#75649B',
+    xp: '#EA580C',
+    level: '#536B50',
+  },
+
+  dark: {
+    // Surfaces & Backgrounds
+    background: '#0B0D12',                 // Midnight canvas
+    surface: '#1A202E',                    // Dark surface card
+    surfaceElevated: '#1A202E',
+    card: '#1A202E',
+    cardElevated: '#242B3D',
+    backgroundElement: '#39271F',
+    backgroundSelected: '#39271F',
+
+    // Text & Content
+    text: '#F5F3F0',                       // Off-white primary text
+    textSecondary: '#A5A8B3',              // Muted silver secondary text
+    textMuted: '#6B7280',
+    textDisabled: '#4B5563',
+    textInverse: '#0B0D12',
+
+    // Primary Brand Warm Accent (#FF7A29)
+    primary: '#FF7A29',
+    primaryHover: '#EA580C',
+    primaryPressed: '#C8420B',
+    primarySubtle: '#39271F',
+    primaryText: '#FFFFFF',
+
+    // Secondary Action
+    secondary: '#1A202E',
+    secondaryPressed: '#242B3D',
+    secondaryText: '#F5F3F0',
+
+    // Borders & Dividers
+    border: '#2C3342',                     // Dark border
+    borderStrong: '#3D4758',
+    borderFocus: '#FF7A29',
+    divider: '#2C3342',
+
+    // Input States
+    inputBackground: '#1A202E',
+    inputBorder: '#2C3342',
+    inputBorderFocus: '#FF7A29',
+    inputPlaceholder: '#A5A8B3',
+
+    // Disabled State
+    disabled: '#1A202E',
+    disabledBorder: '#2C3342',
+
+    // Figma Themed Accent Surfaces
+    momentumCard: '#30251F',
+    momentumChip: '#493024',
+    momentumTrack: '#594034',
+    momentumFill: '#FF7A29',
+
+    lavender: '#373044',
+    lavenderText: '#D8C7F4',
+
+    sage: '#1E281F',
+    sageCard: '#1E281F',
+    sageText: '#9FC09A',
+
+    // Feedback Status
+    success: '#27866A',
+    successBackground: '#152920',
+    warning: '#FF7A29',
+    warningBackground: '#39271F',
+    error: '#EF4444',
+    errorBackground: '#3B1A1A',
+    info: '#7C6DAF',
+    infoBackground: '#262038',
+
+    // Bottom Navigation
+    bottomNavBg: '#1A202E',
+    bottomNavBorder: '#2C3342',
+    bottomNavActive: '#FF7A29',
+    bottomNavInactive: '#A5A8B3',
+
+    // Status / Metagame
+    streak: '#FF7A29',
+    quest: '#D8C7F4',
+    xp: '#FF7A29',
+    level: '#9FC09A',
   },
 };
 
 // ---------------------------------------------------------------------------
-// 3. Typography Scale (System Fonts with Editorial Proportions)
+// 3. Typography Scale (Figma Reference Proportions)
 // ---------------------------------------------------------------------------
 export const Typography = {
-  /** Display heading — hero / milestone screens */
-  display: { fontSize: 34, lineHeight: 42, fontWeight: '700', letterSpacing: -0.6 },
-  /** H1 — screen titles */
-  h1: { fontSize: 26, lineHeight: 34, fontWeight: '700', letterSpacing: -0.4 },
-  /** H2 — section headers */
-  h2: { fontSize: 20, lineHeight: 28, fontWeight: '600', letterSpacing: -0.2 },
-  /** H3 — card titles / quest headers */
-  h3: { fontSize: 17, lineHeight: 24, fontWeight: '600', letterSpacing: -0.1 },
+  /** Figma Hero Wordmark */
+  wordmark: { fontSize: 18, lineHeight: 22, fontWeight: '700', letterSpacing: -0.2 },
+  /** Figma Date Overline */
+  dateOverline: { fontSize: 9, lineHeight: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
+
+  /** Display heading / Momentum Title */
+  display: { fontSize: 27, lineHeight: 33, fontWeight: '700', letterSpacing: -0.4 },
+  /** H1 — Screen Titles (e.g. "Your tasks", "Timetable", "Good afternoon") */
+  h1: { fontSize: 24, lineHeight: 29, fontWeight: '700', letterSpacing: -0.3 },
+  /** H2 — Section Headers (e.g. "Today's focus", "Your schedule") */
+  h2: { fontSize: 16, lineHeight: 20, fontWeight: '700', letterSpacing: -0.2 },
+  /** H3 — Card Titles */
+  h3: { fontSize: 15, lineHeight: 19, fontWeight: '600', letterSpacing: -0.1 },
+
+  /** Stat value numbers (08, 2.4h, 92%) */
+  statNumber: { fontSize: 22, lineHeight: 27, fontWeight: '700', letterSpacing: -0.3 },
+  /** Stat label ("Tasks done", "Focus time") */
+  statLabel: { fontSize: 10, lineHeight: 12, fontWeight: '400' },
+
   /** Body — default reading text */
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  /** Body strong — emphasized body text */
-  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  /** Body small — secondary body text */
-  bodySmall: { fontSize: 13, lineHeight: 19, fontWeight: '400' },
-  /** Body small strong — compact emphasized text */
-  bodySmallStrong: { fontSize: 13, lineHeight: 19, fontWeight: '600' },
-  /** Label — compact controls, tags */
-  label: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.2 },
-  /** Caption — secondary metadata, helper text */
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '400', letterSpacing: 0.1 },
-  /** Overline — category / streak tracker labels */
-  overline: { fontSize: 10, lineHeight: 14, fontWeight: '700', letterSpacing: 1.0, textTransform: 'uppercase' },
-  /** Button — interactive button label */
-  button: { fontSize: 14, lineHeight: 20, fontWeight: '600', letterSpacing: 0.1 },
-  /** Progress / Metric number — streaks, XP counters */
-  progressNumber: { fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.3 },
+  body: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  bodyStrong: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+
+  /** Task Item Titles */
+  taskTitle: { fontSize: 13, lineHeight: 16, fontWeight: '600' },
+  taskSubtitle: { fontSize: 10, lineHeight: 12, fontWeight: '400' },
+
+  /** Body small & captions */
+  bodySmall: { fontSize: 12, lineHeight: 16, fontWeight: '400' },
+  bodySmallStrong: { fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  caption: { fontSize: 11, lineHeight: 14, fontWeight: '400' },
+  captionStrong: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  overline: { fontSize: 10, lineHeight: 12, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+
+  /** Chip Text (Streak, XP, time pills) */
+  chip: { fontSize: 11, lineHeight: 13, fontWeight: '600' },
+  button: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+
   /** Monospace code text */
   code: {
     fontSize: 13,
@@ -206,14 +294,18 @@ export const Typography = {
 };
 
 // ---------------------------------------------------------------------------
-// 4. Spacing Scale (4-pt Grid)
+// 4. Spacing Scale (Matching Figma Padding & Gaps)
 // ---------------------------------------------------------------------------
 export const Spacing = {
   none: 0,
   /** 2 */  xxxs: 2,
   /** 4 */  xxs: 4,
+  /** 7 */  chipGap: 7,
   /** 8 */  xs: 8,
+  /** 10 */ taskGap: 10,
   /** 12 */ sm: 12,
+  /** 14 */ cardPad: 14,
+  /** 15 */ screenPad: 15,
   /** 16 */ md: 16,
   /** 24 */ lg: 24,
   /** 32 */ xl: 32,
@@ -231,16 +323,26 @@ export const Spacing = {
 };
 
 // ---------------------------------------------------------------------------
-// 5. Border Radius
+// 5. Border Radius (Figma Reference Radii)
 // ---------------------------------------------------------------------------
 export const Radius = {
   none: 0,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
+  /** Timeline bar */ xs: 4,
+  /** Minor accents */ sm: 8,
+  /** Progress track */ track: 10,
+  /** Checkbox */ checkbox: 11,
+  /** Day pills in week strip */ dayPill: 13,
+  /** Primary button */ button: 14,
+  /** Quest card */ quest: 17,
+  /** Avatar / Icon A */ avatar: 21,
+  /** Floating bottom nav */ nav: 22,
+  /** Figma Cards (Default card border-radius) */ card: 20,
+  /** Screen outer container */ screen: 30,
+  /** Chips / Rounded full */ full: 50,
+  // Compatibility aliases
+  md: 14,
+  lg: 20,
   xl: 22,
-  full: 9999,
 };
 
 // ---------------------------------------------------------------------------
@@ -267,23 +369,23 @@ export const Shadow = {
   sm: {
     shadowColor: '#1A1612',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
     elevation: 1,
   },
   md: {
     shadowColor: '#1A1612',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   lg: {
     shadowColor: '#1A1612',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
 };
 
@@ -307,14 +409,14 @@ export const Motion = {
 // 9. Layout Constants
 // ---------------------------------------------------------------------------
 export const Layout = {
-  maxContentWidth: 780,
-  screenPaddingHorizontal: Spacing.md,
-  sectionSpacing: Spacing.lg,
-  cardPadding: Spacing.md,
-  itemGap: Spacing.sm,
-  controlHeightSm: 36,
+  maxContentWidth: 480, // Mobile-first width target
+  screenPaddingHorizontal: 24, // Figma 24px horizontal padding
+  sectionSpacing: Spacing.sm,
+  cardPadding: 15,
+  itemGap: 10,
+  controlHeightSm: 32,
   controlHeightMd: 44,
   controlHeightLg: 50,
-  bottomTabHeight: 60,
-  bottomTabInset: Platform.select({ ios: 50, android: 80, default: 0 }),
+  bottomTabHeight: 56,
+  bottomTabInset: Platform.select({ ios: 24, android: 16, default: 16 }),
 };

@@ -6,9 +6,9 @@ import { Borders, Radius, Shadow, Spacing } from '@/theme';
 
 export function ThemedCard({
   children,
-  variant = 'elevated',
+  variant = 'outlined',
   padding = 'md',
-  radius = 'lg',
+  radius = 'card', // Figma standard is 20px
   onPress,
   style,
   accessibilityRole,
@@ -18,32 +18,49 @@ export function ThemedCard({
 
   const getVariantStyle = (pressed) => {
     switch (variant) {
-      case 'outlined':
-        return {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
-          borderWidth: Borders.thin,
-        };
       case 'flat':
         return {
           backgroundColor: theme.surface,
           borderColor: 'transparent',
           borderWidth: 0,
         };
-      case 'elevated':
-      default:
+      case 'momentum':
         return {
-          backgroundColor: theme.cardElevated,
-          // A hairline border plus a soft shadow keeps light cards crisp
+          backgroundColor: theme.momentumCard || (theme.isDark ? '#30251F' : '#FCE7D7'),
+          borderColor: 'transparent',
+          borderWidth: 0,
+        };
+      case 'sage':
+        return {
+          backgroundColor: theme.sageCard || (theme.isDark ? '#1E281F' : '#E9EFE4'),
+          borderColor: 'transparent',
+          borderWidth: 0,
+        };
+      case 'lavender':
+        return {
+          backgroundColor: theme.lavender || (theme.isDark ? '#373044' : '#EAE4F7'),
+          borderColor: 'transparent',
+          borderWidth: 0,
+        };
+      case 'elevated':
+        return {
+          backgroundColor: theme.cardElevated || theme.surface,
           borderColor: theme.border,
           borderWidth: Borders.thin,
           ...(pressed ? {} : Shadow.sm),
+        };
+      case 'outlined':
+      default:
+        return {
+          backgroundColor: theme.card || theme.surface,
+          borderColor: theme.border,
+          borderWidth: Borders.thin,
         };
     }
   };
 
   const paddingStyle = paddingStyles[padding] ?? paddingStyles.md;
-  const radiusValue = Radius[radius] ?? Radius.lg;
+  const radiusValue = Radius[radius] ?? Radius.card ?? 20;
 
   if (onPress) {
     return (
@@ -85,14 +102,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pressed: {
-    opacity: 0.92,
+    opacity: 0.94,
     transform: [{ scale: 0.99 }],
   },
 });
 
 const paddingStyles = StyleSheet.create({
   none: { padding: 0 },
-  sm: { padding: Spacing.sm },
-  md: { padding: Spacing.md },
-  lg: { padding: Spacing.lg },
+  sm: { padding: 10 },
+  md: { padding: 14 }, // Figma 14-15px card padding
+  lg: { padding: 20 },
 });

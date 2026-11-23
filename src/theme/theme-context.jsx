@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -25,6 +24,8 @@ async function getStoredThemeMode() {
       }
       return null;
     }
+    // Dynamic require for native SecureStore to keep web/SSR bundle safe
+    const SecureStore = require('expo-secure-store');
     return await SecureStore.getItemAsync(STORAGE_KEY);
   } catch {
     return null;
@@ -43,34 +44,55 @@ async function setStoredThemeMode(mode) {
       }
       return;
     }
+    const SecureStore = require('expo-secure-store');
     if (mode === 'system') {
       await SecureStore.deleteItemAsync(STORAGE_KEY);
     } else {
       await SecureStore.setItemAsync(STORAGE_KEY, mode);
     }
   } catch {
-    // Non-fatal if storage write fails
+    // Non-fatal
   }
 }
 
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  // Mova Campus design system: Premium light mode is the canonical theme everywhere.
-  const [themeMode] = useState('light');
-  const setThemeMode = useCallback(() => {}, []);
+  const systemScheme = useColorScheme();
+  const [themeMode, setThemeModeState] = useState('system'); // 'light' | 'dark' | 'system'
 
-  const resolvedScheme = 'light';
-  const isDark = false;
-  const colors = Colors.light;
+  useEffect(() => {
+    let isCancelled = false;
+    getStoredThemeMode().then((stored) => {
+      if (!isCancelled && stored && (stored === 'light' || stored === 'dark' || stored === 'system')) {
+        setThemeModeState(stored);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const setThemeMode = useCallback((mode) => {
+    setThemeModeState(mode);
+    setStoredThemeMode(mode);
+  }, []);
+
+  const isDark = useMemo(() => {
+    if (themeMode === 'dark') return true;
+    if (themeMode === 'light') return false;
+    return systemScheme === 'dark';
+  }, [themeMode, systemScheme]);
+
+  const colors = isDark ? Colors.dark : Colors.light;
 
   const contextValue = useMemo(() => ({
     ...colors,
     colors,
-    colorScheme: 'light',
-    themeMode: 'light',
+    colorScheme: isDark ? 'dark' : 'light',
+    themeMode,
     setThemeMode,
-    isDark: false,
+    isDark,
     tokens: {
       colors,
       typography: Typography,
@@ -81,7 +103,7 @@ export function ThemeProvider({ children }) {
       layout: Layout,
       motion: Motion,
     },
-  }), [colors, setThemeMode]);
+  }), [colors, isDark, themeMode, setThemeMode]);
 
   return (
     <ThemeContext.Provider value={contextValue}>
@@ -96,7 +118,7 @@ export function useTheme() {
     return context;
   }
 
-  // Pure light mode fallback
+  // Fallback
   const colors = Colors.light;
   return {
     ...colors,

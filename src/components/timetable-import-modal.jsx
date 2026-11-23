@@ -31,6 +31,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { ocrService } from '@/services/ocr-service';
 import { timetableService } from '@/services/timetable-service';
 import { Borders, Radius, Spacing } from '@/theme';
+import { detectTimetableConflicts } from '@/utils/ocr-parser';
 import { WEEKDAYS } from '@/utils/timetable-validators';
 
 function formatFileSize(bytes) {
@@ -58,6 +59,8 @@ export function TimetableImportModal({ visible, onClose, onSaveComplete }) {
     { id: '2', subject_name: 'Database Systems', weekday: 1, start_time: '11:00', end_time: '12:30', room: 'Lab 2' },
     { id: '3', subject_name: 'Algorithms', weekday: 2, start_time: '10:00', end_time: '11:30', room: 'Room 204' },
   ]);
+
+  const conflicts = React.useMemo(() => detectTimetableConflicts(rows), [rows]);
 
   const handleAddRow = () => {
     setRows((prev) => [
@@ -228,14 +231,14 @@ export function TimetableImportModal({ visible, onClose, onSaveComplete }) {
                 Upload Schedule Document
               </ThemedText>
               <ThemedText type="caption" themeColor="textSecondary" style={styles.helperText}>
-                Supported formats: PDF, JPG, JPEG, PNG (max 10MB). Automatically detects days, times, and rooms. Duplicates are skipped.
+                Supported formats: PDF, JPG, PNG, WEBP, CSV, TXT (max 10MB). Text extraction is processed locally in your browser. Existing duplicates are automatically skipped.
               </ThemedText>
 
               {Platform.OS === 'web' && (
                 <input
                   type="file"
                   ref={fileInputRef}
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,text/csv,text/plain"
                   style={{ display: 'none' }}
                   onChange={handleFileUpload}
                 />
@@ -267,6 +270,7 @@ export function TimetableImportModal({ visible, onClose, onSaveComplete }) {
               ) : (
                 <View style={styles.uploadActions}>
                   <ThemedButton
+                    title="Choose PDF or Image"
                     variant="primary"
                     onPress={() => {
                       if (Platform.OS === 'web' && fileInputRef.current) {
@@ -277,9 +281,7 @@ export function TimetableImportModal({ visible, onClose, onSaveComplete }) {
                     }}
                     loading={isProcessing}
                     leftIcon={<MovaIcon name="upload" size={14} color={theme.primaryText} />}
-                  >
-                    Choose PDF or Image
-                  </ThemedButton>
+                  />
                 </View>
               )}
 
@@ -340,6 +342,38 @@ export function TimetableImportModal({ visible, onClose, onSaveComplete }) {
                   size="sm"
                   onPress={() => setErrorMessage(null)}
                 />
+              </View>
+            )}
+
+            {/* Schedule Conflicts Warning Banner */}
+            {conflicts.length > 0 && (
+              <View
+                style={[
+                  styles.conflictBanner,
+                  {
+                    backgroundColor: theme.isDark ? '#3D251E' : '#FFF0E5',
+                    borderColor: theme.isDark ? '#8A3B14' : '#F4A261',
+                  },
+                ]}
+              >
+                <MovaIcon name="alert" size={16} color={theme.isDark ? '#FF7A29' : '#EA580C'} />
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <ThemedText
+                    type="bodySmallStrong"
+                    style={{ color: theme.isDark ? '#FF7A29' : '#EA580C', fontWeight: '700' }}
+                  >
+                    Schedule Conflict Detected ({conflicts.length})
+                  </ThemedText>
+                  {conflicts.map((c, i) => (
+                    <ThemedText
+                      key={i}
+                      type="caption"
+                      style={{ color: theme.isDark ? '#E5B198' : '#92400E', marginTop: 2, fontSize: 11 }}
+                    >
+                      • {c.message}
+                    </ThemedText>
+                  ))}
+                </View>
               </View>
             )}
 
@@ -555,6 +589,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: Spacing.xs,
+  },
+  conflictBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: Borders.thin,
+    marginBottom: Spacing.xs,
   },
   addRowBtn: {
     paddingVertical: 4,

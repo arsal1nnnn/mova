@@ -23,7 +23,6 @@ export function ThemedButton({
   const theme = useTheme();
   const isDisabled = disabled || loading;
 
-  // Determine button styles based on variant
   const getVariantStyles = (pressed) => {
     if (isDisabled) {
       const isBordered = variant === 'outline' || variant === 'surface';
@@ -41,6 +40,13 @@ export function ThemedButton({
           backgroundColor: pressed ? theme.secondaryPressed : theme.secondary,
           borderColor: 'transparent',
           borderWidth: 0,
+        };
+      case 'chip':
+        return {
+          backgroundColor: pressed ? theme.primaryHover : theme.primary,
+          borderColor: 'transparent',
+          borderWidth: 0,
+          borderRadius: Radius.full,
         };
       case 'surface':
         return {
@@ -77,7 +83,6 @@ export function ThemedButton({
     }
   };
 
-  // Determine text color based on variant
   const getTextColor = () => {
     if (isDisabled) {
       return theme.textDisabled;
@@ -92,6 +97,7 @@ export function ThemedButton({
         return theme.primary;
       case 'danger':
         return '#FFFFFF';
+      case 'chip':
       case 'primary':
       default:
         return theme.primaryText;
@@ -128,6 +134,10 @@ export function ThemedButton({
             <Text style={[styles.textBase, sizeTextStyle, { color: textColor }, textStyle]}>
               {title}
             </Text>
+          ) : typeof children === 'string' ? (
+            <Text style={[styles.textBase, sizeTextStyle, { color: textColor }, textStyle]}>
+              {children}
+            </Text>
           ) : (
             children
           )}
@@ -142,7 +152,7 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
+    borderRadius: Radius.button, // Figma 14px button radius
     flexDirection: 'row',
   },
   contentRow: {
@@ -152,40 +162,53 @@ const styles = StyleSheet.create({
   },
   textBase: {
     textAlign: 'center',
-    fontFamily: Typography.button.fontFamily,
+    fontWeight: '600',
   },
   pressed: {
     transform: [{ scale: 0.98 }],
+    opacity: 0.92,
   },
   iconSlotLeft: {
-    marginRight: Spacing.xs,
+    marginRight: 6,
   },
   iconSlotRight: {
-    marginLeft: Spacing.xs,
+    marginLeft: 6,
   },
 });
 
 const sizeStyles = StyleSheet.create({
   sm: {
-    height: Layout.controlHeightSm,
-    paddingHorizontal: Spacing.sm,
+    minHeight: 28,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
   },
   md: {
-    height: Layout.controlHeightMd,
-    paddingHorizontal: Spacing.md,
+    minHeight: 44,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   lg: {
-    height: Layout.controlHeightLg,
-    paddingHorizontal: Spacing.lg,
+    minHeight: 50,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
   },
 });
 
 const textStyles = StyleSheet.create({
-  sm: Typography.label,
-  md: Typography.button,
+  sm: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+  },
+  md: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
   lg: {
-    ...Typography.button,
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 20,
+    fontWeight: '600',
   },
 });

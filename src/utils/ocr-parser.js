@@ -238,3 +238,144 @@ export function parseTimetableText(rawText) {
 
   return results;
 }
+
+/**
+ * Parses attendance records from CSV content (comma, semicolon, or tab delimited).
+ * Supports headers such as "Subject, Attended, Total" or "Course, Present, Held".
+ *
+ * @param {string} csvText
+ * @returns {Array<{ name: string, attended: number, total: number, calculatedPercentage: number, isValid: boolean, error?: string }>}
+ */
+export function parseCsvAttendance(csvText) {
+  if (!csvText || typeof csvText !== 'string') return [];
+
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  // Determine delimiter from first line
+  const firstLine = lines[0];
+  let delimiter = ',';
+  if (firstLine.includes('\t')) delimiter = '\t';
+  else if (firstLine.includes(';') && !firstLine.includes(',')) delimiter = ';';
+
+  const results = [];
+  let nameColIdx = 0;
+  let attendedColIdx = 1;
+  let totalColIdx = 2;
+  let hasHeader = false;
+
+  // Check header line
+  const headerCols = firstLine.split(delimiter).map((c) => c.replace(/^["']|["']$/g, '').trim().toLowerCase());
+  const foundNameIdx = headerCols.findIndex((c) => /subject|course|name|title/i.test(c));
+  const foundAttendedIdx = headerCols.findIndex((c) => /attended|present|attended_classes/i.test(c));
+  const foundTotalIdx = headerCols.findIndex((c) => /total|held|total_classes|conducted/i.test(c));
+
+  if (foundNameIdx !== -1 && (foundAttendedIdx !== -1 || foundTotalIdx !== -1)) {
+    hasHeader = true;
+    nameColIdx = foundNameIdx;
+    attendedColIdx = foundAttendedIdx !== -1 ? foundAttendedIdx : 1;
+    totalColIdx = foundTotalIdx !== -1 ? foundTotalIdx : 2;
+  }
+
+  const startLine = hasHeader ? 1 : 0;
+
+  for (let i = startLine; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const cols = rawLine.split(delimiter).map((c) => c.replace(/^["']|["']$/g, '').trim());
+
+    if (cols.length < 2) continue;
+
+    const rawName = cols[nameColIdx] || '';
+    const rawAttended = cols[attendedColIdx] || '';
+    const rawTotal = cols[totalColIdx] || '';
+
+    // Parse attended and total
+    const attended = parseInt(rawAttended.replace(/[^0-9]/g, ''), 10);
+    const total = parseInt(rawTotal.replace(/[^0-9]/g, ''), 10);
+
+    if (rawName && Number.isFinite(attended) && Number.isFinite(total)) {
+      const nameVal = validateSubjectName(rawName);
+      const baseVal = validateBaselineAttendance({ attended, total });
+
+      const isValid = nameVal.isValid && baseVal.isValid;
+      const error = !nameVal.isValid
+        ? nameVal.error
+        : !baseVal.isValid
+        ? Object.values(baseVal.errors)[0]
+        : null;
+
+      results.push({
+        name: nameVal.sanitizedValue || rawName,
+        attended,
+        total,
+        calculatedPercentage: calculateAttendancePercentage(total, attended),
+        isValid,
+        error: error || undefined,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Detects overlapping schedule conflicts among timetable classes on the same weekday.
+ *
+ * @param {Array<{ id?: string, subject_name?: string, weekday: number, start_time: string, end_time: string }>} classes
+ * @returns {Array<{ classIndexA: number, classIndexB: number, subjectA: string, subjectB: string, weekday: number, message: string }>}
+ */
+export function detectTimetableConflicts(classes = []) {
+  if (!Array.isArray(classes) || classes.length < 2) return [];
+
+  const toMinutes = (timeStr) => {
+    if (!timeStr || typeof timeStr !== 'string') return null;
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return null;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const conflicts = [];
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  for (let i = 0; i < classes.length; i++) {
+    for (let j = i + 1; j < classes.length; j++) {
+      const a = classes[i];
+      const b = classes[j];
+
+      const dayA = parseInt(a.weekday, 10);
+      const dayB = parseInt(b.weekday, 10);
+
+      if (dayA !== dayB) continue;
+
+      const startA = toMinutes(a.start_time);
+      const endA = toMinutes(a.end_time);
+      const startB = toMinutes(b.start_time);
+      const endB = toMinutes(b.end_time);
+
+      if (startA === null || endA === null || startB === null || endB === null) continue;
+
+      // Overlap condition: max(startA, startB) < min(endA, endB)
+      if (Math.max(startA, startB) < Math.min(endA, endB)) {
+        const nameA = a.subject_name || a.title || 'Class';
+        const nameB = b.subject_name || b.title || 'Class';
+        const dayName = DAY_NAMES[dayA] || `Day ${dayA}`;
+
+        conflicts.push({
+          classIndexA: i,
+          classIndexB: j,
+          idA: a.id,
+          idB: b.id,
+          subjectA: nameA,
+          subjectB: nameB,
+          weekday: dayA,
+          message: `${nameA} (${a.start_time}–${a.end_time}) overlaps with ${nameB} (${b.start_time}–${b.end_time}) on ${dayName}.`,
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}

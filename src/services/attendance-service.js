@@ -560,15 +560,22 @@ export const attendanceService = {
       });
 
       // Overall summary across all subjects (aggregating baseline + subsequent)
-      const totalAttended = enrichedSubjects.reduce((acc, s) => acc + s.summary.attendedClasses, 0);
-      const totalClasses = enrichedSubjects.reduce((acc, s) => acc + s.summary.totalClasses, 0);
+      const totalAttended = enrichedSubjects.reduce((acc, s) => acc + (s.summary?.attendedClasses || 0), 0);
+      const totalClasses = enrichedSubjects.reduce((acc, s) => acc + (s.summary?.totalClasses || 0), 0);
+      const calculatedPct = totalClasses > 0 ? Math.round((totalAttended / totalClasses) * 10000) / 100 : null;
+      const totalSafeBunks = enrichedSubjects.reduce((acc, s) => acc + (s.summary?.safeBunks || 0), 0);
+      const totalToRecover = enrichedSubjects.reduce((acc, s) => acc + (s.summary?.classesToRecover || 0), 0);
+
       const overallSummary = {
         totalClasses,
         attendedClasses: totalAttended,
         missedClasses: Math.max(0, totalClasses - totalAttended),
-        percentage: totalClasses > 0 ? Math.round((totalAttended / totalClasses) * 10000) / 100 : 0,
-        safeBunks: enrichedSubjects.reduce((acc, s) => acc + s.summary.safeBunks, 0),
-        classesToRecover: enrichedSubjects.reduce((acc, s) => acc + s.summary.classesToRecover, 0),
+        percentage: calculatedPct ?? 0,
+        overallPercentage: calculatedPct ?? 0,
+        totalSafeBunks,
+        safeBunks: totalSafeBunks,
+        totalToRecover,
+        classesToRecover: totalToRecover,
         status: totalClasses > 0 ? (totalAttended / totalClasses >= 0.75 ? 'on_track' : 'below_target') : 'no_data',
       };
 

@@ -12,14 +12,22 @@
  */
 
 import { logger } from '@/utils/logger';
-import { parseAttendanceReportText, parseTimetableText } from '@/utils/ocr-parser';
+import {
+  parseAttendanceReportText,
+  parseCsvAttendance,
+  parseTimetableText,
+} from '@/utils/ocr-parser';
 
-export const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+export const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.csv', '.txt'];
 export const SUPPORTED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/jpg',
   'image/png',
+  'image/webp',
+  'text/csv',
+  'text/plain',
+  'application/csv',
 ];
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -44,7 +52,7 @@ export function validateUploadFile(file) {
   if (!isExtValid && !isMimeValid) {
     return {
       isValid: false,
-      error: `Unsupported file format. Please upload a PDF, JPG, JPEG, or PNG file.`,
+      error: `Unsupported file format. Supported formats: PDF, JPG, PNG, WEBP, CSV, TXT.`,
     };
   }
 
@@ -169,6 +177,24 @@ class OcrService {
   }
 
   /**
+   * Reads a text/csv file into a plain UTF-8 string.
+   */
+  async readFileAsText(file) {
+    if (typeof file?.text === 'function') {
+      return await file.text();
+    }
+    if (typeof FileReader !== 'undefined' && file instanceof Blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsText(file);
+      });
+    }
+    throw new Error('Could not read text file contents.');
+  }
+
+  /**
    * Reads a file into an ArrayBuffer.
    */
   async readFileAsArrayBuffer(file) {
@@ -225,6 +251,33 @@ class OcrService {
         const isPdf =
           file.type === 'application/pdf' ||
           (typeof file.name === 'string' && file.name.toLowerCase().endsWith('.pdf'));
+
+        const fileName = (file.name || '').toLowerCase();
+        const isCsv = fileName.endsWith('.csv') || file.type === 'text/csv' || file.type === 'application/csv';
+        const isTxt = fileName.endsWith('.txt') || file.type === 'text/plain';
+
+        if (isCsv || isTxt) {
+          const text = await this.readFileAsText(file);
+          let parsed = parseCsvAttendance(text);
+          if (parsed.length === 0) {
+            parsed = parseAttendanceReportText(text);
+          }
+          if (parsed.length > 0) {
+            return {
+              success: true,
+              method: isCsv ? 'csv_parse' : 'text_file_parse',
+              subjects: parsed,
+              message: `Extracted ${parsed.length} subjects from ${isCsv ? 'CSV spreadsheet' : 'text document'}. Review below before saving.`,
+              rawText: text,
+              fileMeta: {
+                name: file.name,
+                size: file.size,
+                type: isCsv ? 'CSV Spreadsheet' : 'Text Document',
+                isPdf: false,
+              },
+            };
+          }
+        }
 
         const fileMeta = {
           name: file.name || 'document',
@@ -345,6 +398,30 @@ class OcrService {
         const isPdf =
           file.type === 'application/pdf' ||
           (typeof file.name === 'string' && file.name.toLowerCase().endsWith('.pdf'));
+
+        const fileName = (file.name || '').toLowerCase();
+        const isCsv = fileName.endsWith('.csv') || file.type === 'text/csv' || file.type === 'application/csv';
+        const isTxt = fileName.endsWith('.txt') || file.type === 'text/plain';
+
+        if (isCsv || isTxt) {
+          const text = await this.readFileAsText(file);
+          const parsed = parseTimetableText(text);
+          if (parsed.length > 0) {
+            return {
+              success: true,
+              method: isCsv ? 'csv_parse' : 'text_file_parse',
+              classes: parsed,
+              message: `Extracted ${parsed.length} timetable slots from ${isCsv ? 'CSV schedule' : 'text document'}. Review below before saving.`,
+              rawText: text,
+              fileMeta: {
+                name: file.name,
+                size: file.size,
+                type: isCsv ? 'CSV Schedule' : 'Text Schedule',
+                isPdf: false,
+              },
+            };
+          }
+        }
 
         const fileMeta = {
           name: file.name || 'timetable_doc',

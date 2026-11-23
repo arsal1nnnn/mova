@@ -10,10 +10,12 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 import {
   calculateAge,
+  generateSuggestedUsername,
   validateAvatarUrl,
   validateDateOfBirth,
   validateDisplayName,
   validateProfileInput,
+  validateUsername,
 } from '@/utils/profile-validators';
 
 const FULL_PROFILE_COLUMNS =
@@ -75,17 +77,64 @@ export const profileService = {
         return { profile: null, error };
       }
 
+      // Extract OAuth / Google account metadata if present
+      const googleName =
+        user.user_metadata?.full_name?.trim() ||
+        user.user_metadata?.name?.trim() ||
+        (user.email ? user.email.split('@')[0] : 'Student');
+      const googleAvatar =
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null;
+
       if (!data) {
-        return { profile: null, error: null };
+        // Automatically prefill profile from Google metadata if first time sign-in
+        const initialUsername = generateSuggestedUsername(googleName || user.email);
+        const initialFriendCode = `MOVA-${user.id.slice(0, 6).toUpperCase()}`;
+
+        const freshProfile = {
+          id: user.id,
+          name: googleName,
+          username: initialUsername,
+          avatar_url: googleAvatar,
+          friend_code: initialFriendCode,
+          is_discoverable: true,
+          is_streak_public: true,
+          is_points_public: true,
+          total_points: 0,
+          current_level: 1,
+        };
+
+        // Try upserting asynchronously
+        supabase.from('profiles').upsert(freshProfile).then(() => {});
+
+        return {
+          profile: {
+            ...freshProfile,
+            age: null,
+          },
+          error: null,
+        };
       }
 
-      // Auto-assign friend code if null
+      // Resolve effective display name: use Google name if stored name is empty or fallback "Student"
+      const effectiveName =
+        data.name && data.name !== 'Student'
+          ? data.name
+          : googleName && googleName !== 'Student'
+          ? googleName
+          : data.name || 'Student';
+
+      const effectiveAvatar = data.avatar_url || googleAvatar;
+      const effectiveUsername = data.username || generateSuggestedUsername(effectiveName || user.email);
       const friendCode = data.friend_code || `MOVA-${data.id.slice(0, 6).toUpperCase()}`;
 
       return {
         profile: {
           ...data,
-          username: data.username || (data.name ? data.name.toLowerCase().replace(/[^a-z0-9_]/g, '') : 'student'),
+          name: effectiveName,
+          avatar_url: effectiveAvatar,
+          username: effectiveUsername,
           friend_code: friendCode,
           is_discoverable: data.is_discoverable !== false,
           is_streak_public: data.is_streak_public !== false,
@@ -102,6 +151,73 @@ export const profileService = {
         error: err instanceof Error ? err : new Error(String(err)),
       };
     }
+  },
+
+  /**
+   * Checks whether a username is available in the database.
+   *
+   * @param {string} username
+   * @param {string|null} [excludeUserId=null]
+   * @returns {Promise<{ available: boolean, error?: string, sanitizedValue?: string, wasTransformed?: boolean }>}
+   */
+  async checkUsernameAvailability(username, excludeUserId = null) {
+    if (!this.isConfigured()) return { available: true };
+
+    const validation = validateUsername(username);
+    if (!validation.isValid) {
+      return {
+        available: false,
+        error: validation.error,
+        sanitizedValue: validation.sanitizedValue,
+        wasTransformed: validation.wasTransformed,
+      };
+    }
+
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('id, username')
+        .ilike('username', validation.sanitizedValue);
+
+      if (excludeUserId) {
+        query = query.neq('id', excludeUserId);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        return { available: false, error: error.message };
+      }
+
+      const available = !data || data.length === 0;
+      return {
+        available,
+        sanitizedValue: validation.sanitizedValue,
+        wasTransformed: validation.wasTransformed,
+        error: available ? null : 'This username is already taken. Please choose another.',
+      };
+    } catch (err) {
+      return { available: false, error: err.message };
+    }
+  },
+
+  /**
+   * Suggests an available username given a display name or email.
+   *
+   * @param {string} nameOrEmail
+   * @returns {Promise<string>}
+   */
+  async suggestUsername(nameOrEmail) {
+    let candidate = generateSuggestedUsername(nameOrEmail);
+    const { available } = await this.checkUsernameAvailability(candidate);
+    if (available) return candidate;
+
+    // Append random number if taken
+    for (let i = 0; i < 5; i++) {
+      candidate = generateSuggestedUsername(`${nameOrEmail}${Math.floor(10 + Math.random() * 90)}`);
+      const res = await this.checkUsernameAvailability(candidate);
+      if (res.available) return candidate;
+    }
+    return candidate;
   },
 
   /**
@@ -215,11 +331,20 @@ export const profileService = {
       }
 
       if (updates.username !== undefined) {
-        const cleanUser = String(updates.username || '').trim().toLowerCase();
-        if (cleanUser && !/^[a-z0-9_]{3,30}$/.test(cleanUser)) {
-          errors.username = 'Username must be 3-30 alphanumeric characters or underscores.';
+        if (!updates.username) {
+          sanitizedUpdates.username = null;
         } else {
-          sanitizedUpdates.username = cleanUser || null;
+          const userVal = validateUsername(updates.username);
+          if (!userVal.isValid) {
+            errors.username = userVal.error;
+          } else {
+            const avail = await this.checkUsernameAvailability(userVal.sanitizedValue, user.id);
+            if (!avail.available) {
+              errors.username = avail.error || 'This username is already taken. Please choose another.';
+            } else {
+              sanitizedUpdates.username = userVal.sanitizedValue;
+            }
+          }
         }
       }
 
@@ -298,6 +423,13 @@ export const profileService = {
       }
 
       if (error) {
+        if (error.code === '23505' || error.message?.includes('username')) {
+          return {
+            profile: null,
+            error: new Error('This username is already taken. Please choose another.'),
+            errors: { username: 'This username is already taken. Please choose another.' },
+          };
+        }
         return { profile: null, error };
       }
 
@@ -318,18 +450,35 @@ export const profileService = {
 
   /**
    * Uploads an avatar image file to Supabase Storage (bucket 'avatars')
-   * with fallback to base64 preview URL.
+   * with format & size validation.
    */
   async uploadAvatar(file) {
     if (!this.isConfigured() || !file) {
       return { avatar_url: null, error: new Error('Missing file or configuration') };
     }
 
+    const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
+    const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+
+    if (file.size && file.size > MAX_AVATAR_BYTES) {
+      return {
+        avatar_url: null,
+        error: new Error(`Image is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed size is 5 MB.`),
+      };
+    }
+
+    if (file.type && !ALLOWED_MIME.includes(file.type.toLowerCase())) {
+      return {
+        avatar_url: null,
+        error: new Error('Unsupported image format. Please select a JPG, PNG, or WEBP photo.'),
+      };
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { avatar_url: null, error: new Error('Unauthenticated') };
 
-      const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
+      const fileExt = file.name ? file.name.split('.').pop().toLowerCase() : 'jpg';
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Upload to avatars bucket
@@ -338,7 +487,7 @@ export const profileService = {
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        logger.warn('Storage upload error, using object URL fallback:', uploadError.message);
+        logger.warn('Storage upload notice, using object URL preview:', uploadError.message);
         if (typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
           const localUrl = window.URL.createObjectURL(file);
           await this.updateProfile({ avatar_url: localUrl });

@@ -1,8 +1,12 @@
 /**
  * Mova Weekday Selector
  *
- * Horizontal, Monday-first weekday navigation for the timetable screen.
- * Shows day abbreviation, today indicator dot, and class count badge.
+ * Matches Figma 03 · Timetable "Week strip":
+ * - 7 vertical day pills (43px width, 58px height, rounded 13px)
+ * - Top: Single-letter day name ("M", "T", "W", "T", "F", "S", "S") (10px semi-bold)
+ * - Bottom: Numeric day of month (14px bold)
+ * - Active pill: Mova Orange (#EA580C / #FF7A29) with white text
+ * - Inactive pills: Card surface (#FFFFFF / #1A202E) with slate day letter and charcoal date
  */
 
 import React from 'react';
@@ -10,8 +14,28 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Borders, Radius, Spacing } from '@/theme';
+import { Radius, Spacing } from '@/theme';
 import { WEEKDAYS } from '@/utils/timetable-validators';
+
+// Helper to calculate the calendar date for each weekday in the current week (Monday-first)
+function getDatesForCurrentWeek() {
+  const now = new Date();
+  const currentDayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday...
+  // Calculate Monday offset: Sunday (0) -> -6, Monday (1) -> 0, Tuesday (2) -> -1 ...
+  const distanceToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + distanceToMonday);
+
+  const dates = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    // Weekday values in our schema: 1 (Mon) .. 6 (Sat), 0 (Sun)
+    const val = i === 6 ? 0 : i + 1;
+    dates[val] = d.getDate();
+  }
+  return dates;
+}
 
 export function WeekdaySelector({
   selectedWeekday,
@@ -21,6 +45,7 @@ export function WeekdaySelector({
   style,
 }) {
   const theme = useTheme();
+  const weekDates = React.useMemo(() => getDatesForCurrentWeek(), []);
 
   return (
     <View
@@ -30,67 +55,41 @@ export function WeekdaySelector({
       {WEEKDAYS.map((day) => {
         const isSelected = selectedWeekday === day.value;
         const isToday = todayWeekday === day.value;
-        const count = counts[day.value] ?? 0;
+        const dayNumber = weekDates[day.value] ?? (day.value === 0 ? 7 : day.value);
 
         return (
           <Pressable
             key={day.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={`${day.label}${isToday ? ', today' : ''}, ${count} ${
-              count === 1 ? 'class' : 'classes'
-            }`}
+            accessibilityLabel={`${day.label}${isToday ? ', today' : ''}`}
             onPress={() => onSelect?.(day.value)}
             style={({ pressed }) => [
               styles.dayCell,
               {
                 backgroundColor: isSelected ? theme.primary : theme.surface,
-                borderColor: isSelected
-                  ? theme.primary
-                  : isToday
-                  ? theme.borderFocus
-                  : theme.border,
               },
-              pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
+              pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
             ]}>
             <ThemedText
-              type="caption"
               style={[
-                styles.dayLabel,
+                styles.dayLetter,
                 {
-                  color: isSelected ? theme.primaryText : theme.textSecondary,
-                  fontWeight: isSelected || isToday ? '700' : '500',
+                  color: isSelected ? '#FFFFFF' : theme.textSecondary,
                 },
               ]}>
-              {day.short}
+              {day.short.charAt(0)}
             </ThemedText>
 
-            <View
+            <ThemedText
               style={[
-                styles.countBadge,
+                styles.dateNumber,
                 {
-                  backgroundColor: isSelected ? theme.primaryPressed : theme.background,
-                  borderColor: isSelected ? theme.primaryPressed : theme.border,
+                  color: isSelected ? '#FFFFFF' : theme.text,
                 },
               ]}>
-              <ThemedText
-                type="caption"
-                style={[
-                  styles.countText,
-                  { color: isSelected ? theme.primaryText : theme.textMuted },
-                ]}>
-                {count}
-              </ThemedText>
-            </View>
-
-            {isToday && (
-              <View
-                style={[
-                  styles.todayIndicator,
-                  { backgroundColor: isSelected ? theme.primaryText : theme.primary },
-                ]}
-              />
-            )}
+              {dayNumber}
+            </ThemedText>
           </Pressable>
         );
       })}
@@ -101,39 +100,26 @@ export function WeekdaySelector({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    gap: 6,
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 5,
   },
   dayCell: {
     flex: 1,
-    minWidth: 36,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-    borderRadius: Radius.md,
-    borderWidth: Borders.thin,
-    alignItems: 'center',
-    gap: 5,
-  },
-  dayLabel: {
-    fontSize: 11,
-    letterSpacing: 0.2,
-  },
-  countBadge: {
-    minWidth: 20,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: Radius.full,
-    borderWidth: Borders.thin,
+    height: 58,
+    borderRadius: Radius.dayPill, // Figma 13px
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
   },
-  countText: {
+  dayLetter: {
     fontSize: 10,
-    fontWeight: '700',
+    lineHeight: 12,
+    fontWeight: '600',
   },
-  todayIndicator: {
-    width: 4,
-    height: 4,
-    borderRadius: Radius.full,
-    marginTop: 1,
+  dateNumber: {
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '700',
   },
 });

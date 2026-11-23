@@ -15,6 +15,7 @@ export const ACHIEVEMENTS_LIST = [
   { key: 'attendance_safe', title: 'Attendance Titan', description: 'All registered subjects above target', points: 50, icon: 'attendance' },
   { key: 'schedule_built', title: 'Time Architect', description: 'Configured your full weekly timetable', points: 40, icon: 'timetable' },
   { key: 'campus_connected', title: 'Campus Connected', description: 'Connected with your first friend', points: 25, icon: 'user' },
+  { key: 'focus_master', title: 'Deep Focus', description: 'Completed your first 25+ min focus session', points: 30, icon: 'target' },
 ];
 
 export function calculateLevelFromXp(xp = 0) {

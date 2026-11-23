@@ -1,12 +1,14 @@
 /**
  * Mova Timetable / Routine Screen
  *
- * Weekly recurring class schedule interface:
- * - Create, edit and delete class slots with validated time ranges
- * - Monday-first weekday navigation strip with per-day class counts
- * - Day view (chronological) and Week view (all seven days)
- * - Upcoming classes, empty states, and conflict notices
- * - Polished editorial calendar layout
+ * Matches Figma 03 · Timetable — Light (#3:255):
+ * - Header: "Timetable" (24px bold) + "Your week, at a glance." (12px) + "+ Add class" pill button (#EA580C)
+ * - Month header: "NOVEMBER 2026" (10px bold, letterSpacing 0.8, uppercase)
+ * - Week strip: 7 day pills (Mon - Sun, 43x58, rounded 13px)
+ * - Day summary chip: "MONDAY, 23 NOV · 4 CLASSES" (#FFF0E4 / #39271F)
+ * - Timeline Schedule List: 48px time rail + 3px vertical timeline marker + pastel tinted card
+ * - Weekly attendance insight card: "Weekly attendance" + "92%" + "You're doing great. Keep your streak alive."
+ * - OCR timetable image/PDF import modal and full Supabase persistence
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -24,12 +26,9 @@ import {
   ClassCard,
   ClassFormModal,
   EmptyState,
-  MetricStrip,
   MovaIcon,
-  PageHeader,
   ProfileModal,
   ScreenContainer,
-  SectionHeader,
   ThemedButton,
   ThemedCard,
   ThemedText,
@@ -40,9 +39,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { profileService } from '@/services/profile-service';
 import { timetableService } from '@/services/timetable-service';
-import { Borders, Radius, Spacing } from '@/theme';
+import { Borders, Radius, Spacing, Typography } from '@/theme';
 import {
-  formatTime12h,
   formatTimeRange,
   getClassesForWeekday,
   getUpcomingClasses,
@@ -52,6 +50,16 @@ import {
   WEEKDAYS,
 } from '@/utils/timetable-validators';
 
+function getFormattedMonthYear() {
+  try {
+    const d = new Date();
+    const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(d);
+    return `${month} ${d.getFullYear()}`.toUpperCase();
+  } catch {
+    return 'NOVEMBER 2026';
+  }
+}
+
 function showAlert(title, message) {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && typeof window.alert === 'function') {
@@ -60,13 +68,6 @@ function showAlert(title, message) {
     return;
   }
   Alert.alert(title, message);
-}
-
-function shiftWeekday(weekday, delta) {
-  const index = WEEKDAYS.findIndex((day) => day.value === weekday);
-  const base = index === -1 ? 0 : index;
-  const next = (base + delta + WEEKDAYS.length) % WEEKDAYS.length;
-  return WEEKDAYS[next].value;
 }
 
 export default function TimetableScreen() {
@@ -85,7 +86,7 @@ export default function TimetableScreen() {
 
   const todayWeekday = getWeekdayFromDate();
   const [selectedWeekday, setSelectedWeekday] = useState(todayWeekday);
-  const [viewMode, setViewMode] = useState('day');
+  const [viewMode, setViewMode] = useState('day'); // 'day' | 'week'
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
@@ -155,15 +156,6 @@ export default function TimetableScreen() {
     [classes, todayWeekday]
   );
 
-  const upcoming = useMemo(() => getUpcomingClasses(classes, new Date(), 3), [classes]);
-
-  const weekSchedule = useMemo(
-    () => getWeekSchedule(classes).filter((day) => day.classes.length > 0),
-    [classes]
-  );
-
-  const nextClassId = upcoming[0]?.dayOffset === 0 ? upcoming[0]?.class?.id : null;
-
   const handleRefresh = () => {
     setIsRefreshing(true);
     setReloadTrigger((prev) => prev + 1);
@@ -228,24 +220,17 @@ export default function TimetableScreen() {
     }
   };
 
-  const renderEmptyDay = (weekday) => (
-    <EmptyState
-      iconName="timetable"
-      title={weekday === todayWeekday ? 'No Classes Today' : `No Classes on ${getWeekdayLabel(weekday)}`}
-      description="Add a lecture, lab, or tutorial and it will repeat on this day every week."
-      action={
-        <ThemedButton
-          title="+ Add Class"
-          variant="primary"
-          size="sm"
-          onPress={handleOpenCreateModal}
-        />
-      }
-    />
-  );
+  // Day summary pill text
+  const daySummaryText = useMemo(() => {
+    const dayLabel = getWeekdayLabel(selectedWeekday).toUpperCase();
+    const count = selectedDayClasses.length;
+    return `${dayLabel} · ${count} ${count === 1 ? 'CLASS' : 'CLASSES'}`;
+  }, [selectedWeekday, selectedDayClasses]);
 
   return (
     <ScreenContainer
+      scrollable
+      style={{ paddingBottom: 100 }}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -253,286 +238,231 @@ export default function TimetableScreen() {
           tintColor={theme.primary}
           colors={[theme.primary]}
         />
-      }>
-      <PageHeader
-        title="Class Routine"
-        subtitle="Weekly recurring timetable"
-        userProfile={profile}
-        onAvatarPress={() => setProfileModalVisible(true)}
-        action={
-          <View style={{ flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' }}>
-            <ThemedButton
-              title="Upload Schedule"
-              variant="outline"
-              size="sm"
-              onPress={() => setImportModalVisible(true)}
-              leftIcon={<MovaIcon name="upload" size={14} color={theme.primary} />}
-            />
-            <ThemedButton
-              title="+ Add Class"
-              variant="primary"
-              size="sm"
-              onPress={handleOpenCreateModal}
-            />
+      }
+    >
+      {/* 1. Header: "Timetable" + Subtitle + "+ Add class" pill */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          <ThemedText style={[styles.headerTitle, { color: theme.text }]}>
+            Timetable
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
+            Your week, at a glance.
+          </ThemedText>
+        </View>
+
+        <View style={styles.headerRightActions}>
+          <Pressable
+            onPress={() => setImportModalVisible(true)}
+            accessibilityLabel="Upload schedule document"
+            style={({ pressed }) => [
+              styles.uploadPillBtn,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <MovaIcon name="upload" size={13} color={theme.primary} />
+            <ThemedText style={[styles.uploadPillText, { color: theme.primary }]}>
+              Scan OCR
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={handleOpenCreateModal}
+            accessibilityLabel="Add new class"
+            style={({ pressed }) => [
+              styles.addClassPillBtn,
+              { backgroundColor: theme.primary },
+              pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
+            ]}
+          >
+            <ThemedText style={styles.addClassPillText}>+ Add class</ThemedText>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* 2. Month Header: "NOVEMBER 2026" */}
+      <View style={styles.monthHeaderRow}>
+        <ThemedText style={[styles.monthHeaderText, { color: theme.textSecondary }]}>
+          {getFormattedMonthYear()}
+        </ThemedText>
+
+        {/* View toggle (Day vs Week) */}
+        <View
+          style={[
+            styles.segmentContainer,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Pressable
+            onPress={() => setViewMode('day')}
+            style={[
+              styles.segmentItem,
+              viewMode === 'day' && { backgroundColor: theme.primary },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.segmentText,
+                { color: viewMode === 'day' ? '#FFFFFF' : theme.textSecondary },
+              ]}
+            >
+              Day
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setViewMode('week')}
+            style={[
+              styles.segmentItem,
+              viewMode === 'week' && { backgroundColor: theme.primary },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.segmentText,
+                { color: viewMode === 'week' ? '#FFFFFF' : theme.textSecondary },
+              ]}
+            >
+              Week
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* 3. Week Strip: 7 pills (Mon - Sun, 43x58, rounded 13px) */}
+      <WeekdaySelector
+        selectedWeekday={selectedWeekday}
+        onSelect={(weekday) => {
+          setSelectedWeekday(weekday);
+          setViewMode('day');
+        }}
+        counts={counts}
+        todayWeekday={todayWeekday}
+      />
+
+      {/* 4. Day Summary Chip: e.g. "MONDAY, 23 NOV · 4 CLASSES" */}
+      {viewMode === 'day' && (
+        <View style={styles.daySummaryChipRow}>
+          <View
+            style={[
+              styles.daySummaryChip,
+              { backgroundColor: theme.isDark ? '#39271F' : '#FFF0E4' },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.daySummaryChipText,
+                { color: theme.isDark ? '#FF7A29' : '#EA580C' },
+              ]}
+            >
+              {daySummaryText}
+            </ThemedText>
           </View>
-        }
-      />
-
-      {/* Weekly metrics */}
-      <MetricStrip
-        items={[
-          { label: 'Today', value: `${todayClasses.length} Classes`, tone: 'primary', size: 'bodySmallStrong' },
-          { label: 'Weekly Total', value: `${classes.length} Slots`, size: 'bodySmallStrong' },
-          {
-            label: 'Next Up',
-            value: upcoming[0] ? formatTime12h(upcoming[0].class.start_time) : '—',
-            tone: 'success',
-            size: 'bodySmallStrong',
-          },
-        ]}
-      />
-
-      {/* Unconfigured notice */}
-      {isUnconfigured && (
-        <ThemedCard variant="outlined" style={[styles.noticeCard, { borderColor: theme.warning }]}>
-          <ThemedText type="bodyStrong" style={{ color: theme.warning, marginBottom: 4 }}>
-            Supabase not configured
-          </ThemedText>
-          <ThemedText type="bodySmall" themeColor="textSecondary">
-            Timetable persistence requires EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.
-          </ThemedText>
-        </ThemedCard>
+        </View>
       )}
 
-      {/* Error state */}
-      {errorMessage && !isUnconfigured && (
-        <ThemedCard variant="outlined" style={[styles.noticeCard, { borderColor: theme.error }]}>
-          <ThemedText type="bodyStrong" style={{ color: theme.error, marginBottom: 4 }}>
-            Failed to Load Timetable
-          </ThemedText>
-          <ThemedText type="bodySmall" themeColor="textSecondary" style={{ marginBottom: Spacing.sm }}>
-            {errorMessage}
-          </ThemedText>
-          <ThemedButton
-            title="Retry"
-            variant="outline"
-            size="sm"
-            onPress={() => setReloadTrigger((prev) => prev + 1)}
-          />
-        </ThemedCard>
-      )}
-
-      {/* Loading */}
+      {/* Loading indicator */}
       {isLoading && !isRefreshing && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <ThemedText type="caption" themeColor="textMuted" style={{ marginTop: Spacing.sm }}>
+          <ThemedText style={[styles.loadingText, { color: theme.textSecondary }]}>
             Loading timetable...
           </ThemedText>
         </View>
       )}
 
-      {!isLoading && !isUnconfigured && !errorMessage && (
-        <>
-          {/* Weekday navigation strip */}
-          <WeekdaySelector
-            selectedWeekday={selectedWeekday}
-            onSelect={(weekday) => {
-              setSelectedWeekday(weekday);
-              setViewMode('day');
-            }}
-            counts={counts}
-            todayWeekday={todayWeekday}
-          />
-
-          {/* View mode toggle & day navigation */}
-          <View style={styles.viewToggleRow}>
-            <View
-              style={[
-                styles.segmentContainer,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}>
-              {[
-                { key: 'day', label: 'Day View' },
-                { key: 'week', label: 'Week View' },
-              ].map((option) => {
-                const isSelected = viewMode === option.key;
-                return (
-                  <Pressable
-                    key={option.key}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: isSelected }}
-                    onPress={() => setViewMode(option.key)}
-                    style={({ pressed }) => [
-                      styles.segmentItem,
-                      {
-                        backgroundColor: isSelected ? theme.primary : 'transparent',
-                      },
-                      pressed && { opacity: 0.8 },
-                    ]}>
-                    <ThemedText
-                      type="caption"
-                      style={{
-                        color: isSelected ? theme.primaryText : theme.textSecondary,
-                        fontWeight: isSelected ? '700' : '500',
-                      }}>
-                      {option.label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {viewMode === 'day' && (
-              <View style={styles.dayNavRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Previous day"
-                  onPress={() => setSelectedWeekday(shiftWeekday(selectedWeekday, -1))}
-                  style={({ pressed }) => [
-                    styles.dayNavButton,
-                    { borderColor: theme.border, backgroundColor: theme.surface },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <MovaIcon name="chevron-left" size={16} color={theme.primary} />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Next day"
-                  onPress={() => setSelectedWeekday(shiftWeekday(selectedWeekday, 1))}
-                  style={({ pressed }) => [
-                    styles.dayNavButton,
-                    { borderColor: theme.border, backgroundColor: theme.surface },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <MovaIcon name="chevron-right" size={16} color={theme.primary} />
-                </Pressable>
-              </View>
-            )}
-          </View>
-
-          {/* Day view */}
-          {viewMode === 'day' && (
-            <View style={styles.section}>
-              <SectionHeader
-                title={
-                  selectedWeekday === todayWeekday
-                    ? `Today · ${getWeekdayLabel(selectedWeekday)}`
-                    : getWeekdayLabel(selectedWeekday)
-                }
-                badge={`${selectedDayClasses.length} ${selectedDayClasses.length === 1 ? 'CLASS' : 'CLASSES'}`}
-              />
-
-              {selectedDayClasses.length > 0 ? (
-                <View style={styles.cardList}>
-                  {selectedDayClasses.map((classSlot) => (
-                    <ClassCard
-                      key={classSlot.id}
-                      classSlot={classSlot}
-                      onEdit={handleOpenEditModal}
-                      onDelete={handleDeleteClass}
-                      isNext={classSlot.id === nextClassId}
-                    />
-                  ))}
-                </View>
-              ) : (
-                renderEmptyDay(selectedWeekday)
-              )}
-            </View>
-          )}
-
-          {/* Week view */}
-          {viewMode === 'week' && (
-            <View style={styles.section}>
-              <SectionHeader title="Weekly Schedule" />
-
-              {classes.length === 0 ? (
-                <EmptyState
-                  iconName="timetable"
-                  title="Your Routine Is Empty"
-                  description="Add your recurring lectures and labs once to construct your full weekly schedule."
-                  action={
-                    <ThemedButton
-                      title="+ Add First Class"
-                      variant="primary"
-                      size="sm"
-                      onPress={handleOpenCreateModal}
-                    />
-                  }
+      {/* 5. Timeline Schedule List */}
+      {!isLoading && viewMode === 'day' && (
+        <View style={styles.timelineListContainer}>
+          {selectedDayClasses.length > 0 ? (
+            <View style={{ gap: Spacing.sm }}>
+              {selectedDayClasses.map((classSlot) => (
+                <ClassCard
+                  key={classSlot.id}
+                  classSlot={classSlot}
+                  onEdit={handleOpenEditModal}
+                  onDelete={handleDeleteClass}
                 />
-              ) : (
-                WEEKDAYS.map((day) => {
-                  const dayClasses = getClassesForWeekday(classes, day.value);
-                  const isToday = day.value === todayWeekday;
-
-                  return (
-                    <View key={day.value} style={styles.weekDayBlock}>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${day.label}`}
-                        hitSlop={6}
-                        onPress={() => {
-                          setSelectedWeekday(day.value);
-                          setViewMode('day');
-                        }}
-                        style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                        <View style={styles.weekDayHeader}>
-                          <ThemedText
-                            type="bodySmallStrong"
-                            style={{ color: isToday ? theme.primary : theme.text }}>
-                            {day.label}
-                            {isToday ? ' · Today' : ''}
-                          </ThemedText>
-                          <ThemedText type="caption" themeColor="textMuted">
-                            {dayClasses.length === 0
-                              ? 'Free day'
-                              : `${dayClasses.length} ${dayClasses.length === 1 ? 'class' : 'classes'}`}
-                          </ThemedText>
-                        </View>
-                      </Pressable>
-
-                      {dayClasses.length > 0 ? (
-                        dayClasses.map((classSlot) => (
-                          <ClassCard
-                            key={classSlot.id}
-                            classSlot={classSlot}
-                            onEdit={handleOpenEditModal}
-                            onDelete={handleDeleteClass}
-                          />
-                        ))
-                      ) : (
-                        <ThemedText
-                          type="caption"
-                          themeColor="textMuted"
-                          style={styles.freeDayText}>
-                          No scheduled classes
-                        </ThemedText>
-                      )}
-                    </View>
-                  );
-                })
-              )}
-            </View>
-          )}
-
-          {/* Up next section */}
-          {upcoming.length > 0 && (
-            <View style={styles.section}>
-              <SectionHeader title="Up Next in Routine" />
-              {upcoming.map((item) => (
-                <View key={`${item.class.id}-${item.dayOffset}`}>
-                  <ClassCard
-                    classSlot={item.class}
-                    showWeekday={item.dayOffset > 0}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDeleteClass}
-                  />
-                </View>
               ))}
             </View>
+          ) : (
+            <EmptyState
+              iconName="timetable"
+              title={selectedWeekday === todayWeekday ? 'No Classes Today' : `No Classes on ${getWeekdayLabel(selectedWeekday)}`}
+              description="No classes scheduled for this day. You can add one or import your syllabus."
+              action={
+                <ThemedButton
+                  title="+ Add Class"
+                  variant="primary"
+                  size="sm"
+                  onPress={handleOpenCreateModal}
+                />
+              }
+            />
           )}
-        </>
+        </View>
       )}
+
+      {/* Week View */}
+      {!isLoading && viewMode === 'week' && (
+        <View style={styles.weekViewContainer}>
+          {WEEKDAYS.map((day) => {
+            const dayClasses = getClassesForWeekday(classes, day.value);
+            const isToday = day.value === todayWeekday;
+
+            return (
+              <View key={day.value} style={styles.weekDayBlock}>
+                <View style={styles.weekDayHeader}>
+                  <ThemedText style={[styles.weekDayTitle, { color: isToday ? theme.primary : theme.text }]}>
+                    {day.label}
+                    {isToday ? ' · Today' : ''}
+                  </ThemedText>
+                  <ThemedText style={[styles.weekDayBadge, { color: theme.textSecondary }]}>
+                    {dayClasses.length === 0 ? 'No classes' : `${dayClasses.length} ${dayClasses.length === 1 ? 'class' : 'classes'}`}
+                  </ThemedText>
+                </View>
+
+                {dayClasses.length > 0 ? (
+                  <View style={{ gap: Spacing.xs }}>
+                    {dayClasses.map((classSlot) => (
+                      <ClassCard
+                        key={classSlot.id}
+                        classSlot={classSlot}
+                        onEdit={handleOpenEditModal}
+                        onDelete={handleDeleteClass}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <ThemedText style={[styles.freeDayNote, { color: theme.textSecondary }]}>
+                    Free day
+                  </ThemedText>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* 6. Weekly Attendance Insight Card */}
+      <ThemedCard variant="outlined" style={styles.insightCard}>
+        <View style={styles.insightLeft}>
+          <ThemedText style={[styles.insightTitle, { color: theme.text }]}>
+            Weekly attendance
+          </ThemedText>
+          <ThemedText style={[styles.insightSubtitle, { color: theme.textSecondary }]}>
+            You&apos;re doing great. Keep your streak alive.
+          </ThemedText>
+        </View>
+
+        <ThemedText style={[styles.insightBigPercentage, { color: theme.primary }]}>
+          92%
+        </ThemedText>
+      </ThemedCard>
 
       {/* Class Form Modal */}
       <ClassFormModal
@@ -544,7 +474,7 @@ export default function TimetableScreen() {
         onSave={handleSaveClass}
       />
 
-      {/* Profile & Settings Modal */}
+      {/* Profile Modal */}
       <ProfileModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}
@@ -553,7 +483,7 @@ export default function TimetableScreen() {
         }}
       />
 
-      {/* Timetable OCR / Photo Import Modal */}
+      {/* OCR Timetable Import Modal */}
       <TimetableImportModal
         visible={importModalVisible}
         onClose={() => setImportModalVisible(false)}
@@ -564,66 +494,172 @@ export default function TimetableScreen() {
 }
 
 const styles = StyleSheet.create({
-  noticeCard: {
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+  // 1. Header
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xs,
   },
+  headerLeft: {
+    gap: 3,
+  },
+  headerTitle: {
+    fontSize: Typography.h1.fontSize,
+    lineHeight: Typography.h1.lineHeight,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '400',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.button,
+    borderWidth: Borders.thin,
+  },
+  uploadPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  addClassPillBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addClassPillText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // 2. Month Header
+  monthHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xxs,
+  },
+  monthHeaderText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  segmentContainer: {
+    flexDirection: 'row',
+    borderRadius: Radius.sm,
+    borderWidth: Borders.thin,
+    padding: 2,
+    gap: 2,
+  },
+  segmentItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.sm - 2,
+  },
+  segmentText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  // 4. Day Summary Chip
+  daySummaryChipRow: {
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    alignItems: 'flex-start',
+  },
+  daySummaryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+  },
+  daySummaryChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  // 5. Timeline List
+  timelineListContainer: {
+    marginTop: Spacing.xs,
+  },
+  weekViewContainer: {
+    marginTop: Spacing.md,
+    gap: Spacing.md,
+  },
+  weekDayBlock: {
+    gap: Spacing.xs,
+  },
+  weekDayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  weekDayTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  weekDayBadge: {
+    fontSize: 11,
+  },
+  freeDayNote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    paddingVertical: 6,
+  },
+
+  // 6. Insight Card
+  insightCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    borderWidth: Borders.thin,
+    marginTop: Spacing.lg,
+  },
+  insightLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  insightSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  insightBigPercentage: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginLeft: 12,
+  },
+
   loadingContainer: {
     paddingVertical: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  viewToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    gap: 2,
-    padding: 3,
-    borderRadius: Radius.md,
-    borderWidth: Borders.thin,
-  },
-  segmentItem: {
-    minHeight: 32,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayNavRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-  },
-  dayNavButton: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    borderWidth: Borders.thin,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  section: {
-    gap: Spacing.xs,
-  },
-  cardList: {
-    gap: Spacing.xs,
-  },
-  weekDayBlock: {
-    marginBottom: Spacing.sm,
-  },
-  weekDayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.xxs,
-    marginBottom: Spacing.xxs,
-  },
-  freeDayText: {
-    paddingLeft: Spacing.xxs,
-    paddingBottom: Spacing.xs,
+  loadingText: {
+    marginTop: Spacing.sm,
+    fontSize: 12,
   },
 });

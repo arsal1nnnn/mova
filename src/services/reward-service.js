@@ -167,6 +167,56 @@ export const rewardService = {
   },
 
   /**
+   * Awards points for completing a focus session.
+   * Prevents duplicate awards by using reference_type='focus' and reference_id=sessionId.
+   */
+  async awardFocusSession(durationMinutes, sessionId) {
+    if (!this.isConfigured() || !sessionId) return { awarded: false, reason: 'unconfigured' };
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { awarded: false, reason: 'unauthenticated' };
+
+      const { data: existing } = await supabase
+        .from('reward_ledger')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('reference_type', 'focus')
+        .eq('reference_id', String(sessionId))
+        .maybeSingle();
+
+      if (existing) {
+        return { awarded: false, reason: 'already_claimed' };
+      }
+
+      const points = Math.max(10, Math.round(Number(durationMinutes) || 0));
+      const xp = points;
+
+      const { error: insertError } = await supabase.from('reward_ledger').insert({
+        user_id: user.id,
+        points,
+        xp,
+        reason: `Completed ${durationMinutes}m focus session`,
+        reference_type: 'focus',
+        reference_id: String(sessionId),
+      });
+
+      if (insertError) {
+        logger.warn('Could not insert focus reward:', insertError.message);
+        return { awarded: false, error: insertError };
+      }
+
+      if (durationMinutes >= 25) {
+        await this.unlockAchievement('focus_master');
+      }
+
+      return { awarded: true, points, xp };
+    } catch (err) {
+      return { awarded: false, error: err };
+    }
+  },
+
+  /**
    * Unlocks an achievement for the user if not yet unlocked.
    */
   async unlockAchievement(achievementKey) {

@@ -35,7 +35,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "node ./scripts/test-profile-validation.mjs && node ./scripts/test-task-validation.mjs && node ./scripts/test-timetable-validation.mjs && node ./scripts/test-attendance-validation.mjs && node ./scripts/test-baseline-attendance.mjs && node ./scripts/test-attendance-prediction.mjs && node ./scripts/test-streak-calculator.mjs && node ./scripts/test-ocr-validation.mjs && node ./scripts/test-holiday-service.mjs && node ./scripts/test-reward-service.mjs && node ./scripts/test-social-privacy.mjs"
+    "test": "node ./scripts/test-profile-validation.mjs && node ./scripts/test-task-validation.mjs && node ./scripts/test-timetable-validation.mjs && node ./scripts/test-attendance-validation.mjs && node ./scripts/test-baseline-attendance.mjs && node ./scripts/test-attendance-prediction.mjs && node ./scripts/test-streak-calculator.mjs && node ./scripts/test-ocr-validation.mjs && node ./scripts/test-holiday-service.mjs && node ./scripts/test-reward-service.mjs && node ./scripts/test-social-privacy.mjs && node ./scripts/test-username-and-focus.mjs"
   },
   "private": true,
   "devDependencies": {

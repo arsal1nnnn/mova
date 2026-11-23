@@ -290,14 +290,14 @@ export function AttendanceImportModal({ visible, onClose, onSaveComplete }) {
                   Upload Attendance Report
                 </ThemedText>
                 <ThemedText type="caption" themeColor="textSecondary" style={styles.helperText}>
-                  Supported formats: PDF, JPG, JPEG, PNG (max 10MB). Automatically extracts subjects, attended, and total conducted.
+                  Supported formats: PDF, JPG, PNG, WEBP, CSV, TXT (max 10MB). Text extraction is performed locally in your session.
                 </ThemedText>
 
                 {Platform.OS === 'web' && (
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/png,image/jpeg"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,text/csv,text/plain"
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                   />
@@ -329,6 +329,7 @@ export function AttendanceImportModal({ visible, onClose, onSaveComplete }) {
                 ) : (
                   <View style={styles.uploadActions}>
                     <ThemedButton
+                      title="Choose PDF or Image"
                       variant="primary"
                       onPress={() => {
                         if (Platform.OS === 'web' && fileInputRef.current) {
@@ -339,9 +340,7 @@ export function AttendanceImportModal({ visible, onClose, onSaveComplete }) {
                       }}
                       loading={isProcessing}
                       leftIcon={<MovaIcon name="upload" size={14} color={theme.primaryText} />}
-                    >
-                      Choose PDF or Image
-                    </ThemedButton>
+                    />
                   </View>
                 )}
 

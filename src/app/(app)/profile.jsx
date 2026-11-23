@@ -42,6 +42,7 @@ import { privacyService } from '@/services/privacy-service';
 import { profileService } from '@/services/profile-service';
 import { ACHIEVEMENTS_LIST, rewardService } from '@/services/reward-service';
 import { Borders, Radius, Spacing } from '@/theme';
+import { validateUsername } from '@/utils/profile-validators';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -56,6 +57,10 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [usernameError, setUsernameError] = useState(null);
+  const [usernameNotice, setUsernameNotice] = useState(null);
+  const [isSuggestingUsername, setIsSuggestingUsername] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   // Gamification state
   const [userStats, setUserStats] = useState({ totalPoints: 0, totalXp: 0, ledger: [] });
@@ -68,6 +73,7 @@ export default function ProfileScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState([]);
 
   // Settings & Privacy state
   const [settings, setSettings] = useState({
@@ -90,7 +96,7 @@ export default function ProfileScreen() {
     async function loadData() {
       setIsLoadingProfile(true);
       try {
-        const [profRes, statsRes, achRes, friendRes, reqRes, leadRes, setRes] =
+        const [profRes, statsRes, achRes, friendRes, reqRes, leadRes, setRes, blockedRes] =
           await Promise.all([
             profileService.getProfile(),
             rewardService.getUserStats(),
@@ -99,6 +105,7 @@ export default function ProfileScreen() {
             friendService.getPendingRequests(),
             friendService.getFriendsLeaderboard(),
             privacyService.getUserSettings(),
+            friendService.getBlockedUsers(),
           ]);
 
         if (!isCancelled) {
@@ -114,6 +121,7 @@ export default function ProfileScreen() {
           if (reqRes) setPendingRequests(reqRes);
           if (leadRes.leaderboard) setLeaderboard(leadRes.leaderboard);
           if (setRes.settings) setSettings(setRes.settings);
+          if (blockedRes.blockedUsers) setBlockedUsers(blockedRes.blockedUsers);
         }
       } catch {
         // Fallback gracefully
@@ -153,7 +161,17 @@ export default function ProfileScreen() {
   }, [searchQuery]);
 
   const handleSaveProfile = async () => {
+    if (editUsername) {
+      const valResult = validateUsername(editUsername);
+      if (!valResult.isValid) {
+        setUsernameError(valResult.error);
+        setStatusFeedback(valResult.error);
+        return;
+      }
+    }
+
     try {
+      setStatusFeedback('Saving profile...');
       const { profile: updated, error } = await profileService.updateProfile({
         name: editName,
         username: editUsername,
@@ -165,6 +183,7 @@ export default function ProfileScreen() {
       } else if (updated) {
         setProfile(updated);
         setIsEditingProfile(false);
+        setAvatarPreview(null);
         setStatusFeedback('Profile updated successfully!');
         setTimeout(() => setStatusFeedback(null), 3000);
       }
@@ -177,14 +196,46 @@ export default function ProfileScreen() {
     const file = event.target?.files?.[0];
     if (!file) return;
 
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.URL?.createObjectURL) {
+      setAvatarPreview(window.URL.createObjectURL(file));
+    }
+
     setStatusFeedback('Uploading profile picture...');
     const { avatar_url, error } = await profileService.uploadAvatar(file);
     if (error) {
-      setStatusFeedback('Avatar upload failed.');
+      setStatusFeedback(error.message || 'Avatar upload failed.');
+      setAvatarPreview(null);
     } else {
       setProfile((prev) => ({ ...prev, avatar_url }));
-      setStatusFeedback('Avatar updated!');
+      setAvatarPreview(null);
+      setStatusFeedback('Avatar updated successfully!');
       setTimeout(() => setStatusFeedback(null), 3000);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setStatusFeedback('Removing avatar...');
+    const { error } = await profileService.removeAvatar();
+    if (error) {
+      setStatusFeedback(error.message || 'Failed to remove avatar.');
+    } else {
+      setProfile((prev) => ({ ...prev, avatar_url: null }));
+      setAvatarPreview(null);
+      setStatusFeedback('Avatar removed.');
+      setTimeout(() => setStatusFeedback(null), 3000);
+    }
+  };
+
+  const handleUnblock = async (blockedId) => {
+    if (!blockedId) return;
+    setStatusFeedback('Unblocking student...');
+    const res = await friendService.unblockUser(blockedId);
+    if (res.success) {
+      setBlockedUsers((prev) => prev.filter((b) => (b.blocked_id || b.blocked?.id) !== blockedId));
+      setStatusFeedback('Student unblocked.');
+      setTimeout(() => setStatusFeedback(null), 3000);
+    } else {
+      setStatusFeedback(res.error?.message || 'Could not unblock student.');
     }
   };
 
@@ -255,7 +306,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScreenContainer scroll style={{ paddingBottom: insets.bottom + 80 }}>
+    <ScreenContainer scrollable style={{ paddingBottom: insets.bottom + 100 }}>
       {/* Hidden file input for web avatar upload */}
       {Platform.OS === 'web' && (
         <input
@@ -302,8 +353,8 @@ export default function ProfileScreen() {
             }}
             style={styles.avatarWrap}
           >
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+            {avatarPreview || profile?.avatar_url ? (
+              <Image source={{ uri: avatarPreview || profile.avatar_url }} style={styles.avatarImg} />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primarySubtle }]}>
                 <ThemedText style={[styles.avatarInitial, { color: theme.primary }]}>
@@ -349,30 +400,80 @@ export default function ProfileScreen() {
         {/* Inline Edit Form */}
         {isEditingProfile && (
           <View style={styles.editForm}>
-            <ThemedText type="label" color="textPrimary" style={{ marginBottom: 4 }}>
-              Display Name
-            </ThemedText>
-            <ThemedTextInput value={editName} onChangeText={setEditName} placeholder="Full Name" />
-
-            <ThemedText type="label" color="textPrimary" style={{ marginTop: Spacing.sm, marginBottom: 4 }}>
-              Username
-            </ThemedText>
             <ThemedTextInput
-              value={editUsername}
-              onChangeText={setEditUsername}
-              placeholder="username (lowercase, numbers)"
+              label="Display Name"
+              required
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Full Name"
             />
 
-            <ThemedText type="label" color="textPrimary" style={{ marginTop: Spacing.sm, marginBottom: 4 }}>
-              Bio
-            </ThemedText>
             <ThemedTextInput
+              label="Username"
+              required
+              value={editUsername}
+              onChangeText={(val) => {
+                setEditUsername(val);
+                const valResult = validateUsername(val);
+                setUsernameError(valResult.isValid ? null : valResult.error);
+                setUsernameNotice(valResult.wasTransformed ? 'Converted to lowercase' : null);
+              }}
+              placeholder="username (lowercase, numbers)"
+              errorMessage={usernameError}
+              helperText={usernameNotice || '3-20 characters: lowercase letters & numbers only'}
+              success={!usernameError && editUsername.length >= 3}
+              style={{ marginTop: Spacing.sm }}
+            />
+
+            <Pressable
+              onPress={async () => {
+                setIsSuggestingUsername(true);
+                const suggested = await profileService.suggestUsername(editName || user?.email || 'student');
+                setEditUsername(suggested);
+                setUsernameError(null);
+                setUsernameNotice(null);
+                setIsSuggestingUsername(false);
+              }}
+              style={styles.suggestBtn}
+            >
+              <MovaIcon name="sparkle" size={13} color={theme.primary} />
+              <ThemedText type="caption" style={{ color: theme.primary, fontWeight: '700', marginLeft: 4 }}>
+                {isSuggestingUsername ? 'Checking availability...' : 'Suggest Available Username'}
+              </ThemedText>
+            </Pressable>
+
+            <ThemedTextInput
+              label="Bio"
               value={editBio}
               onChangeText={setEditBio}
               placeholder="Major, semester, interests..."
               multiline
               numberOfLines={2}
+              style={{ marginTop: Spacing.sm }}
             />
+
+            {/* Avatar management inside edit form */}
+            <View style={styles.avatarActionRow}>
+              <ThemedButton
+                title={profile?.avatar_url || avatarPreview ? 'Replace Photo' : 'Upload Photo'}
+                size="sm"
+                variant="outline"
+                onPress={() => {
+                  if (Platform.OS === 'web' && fileInputRef.current) {
+                    fileInputRef.current.click();
+                  }
+                }}
+              />
+              {profile?.avatar_url || avatarPreview ? (
+                <ThemedButton
+                  title="Remove Photo"
+                  size="sm"
+                  variant="outline"
+                  onPress={handleRemoveAvatar}
+                  style={{ borderColor: theme.error }}
+                />
+              ) : null}
+            </View>
 
             <ThemedButton
               title="Save Changes"
@@ -677,8 +778,54 @@ export default function ProfileScreen() {
       {/* TAB 3: SETTINGS, PRIVACY & LEGAL */}
       {activeTab === 'settings' && (
         <View style={styles.tabContent}>
+          {/* Appearance & Theme Toggle */}
+          <SectionHeader title="Appearance & Theme" />
+          <ThemedCard variant="outlined" style={styles.settingsCard}>
+            <View style={styles.themeSelectorContainer}>
+              <View>
+                <ThemedText type="bodySmallStrong">Interface Mode</ThemedText>
+                <ThemedText type="caption" color="textSecondary">
+                  {theme.themeMode === 'light'
+                    ? 'Warm Cream Ivory (#FFF7ED) · Figma Light'
+                    : theme.themeMode === 'dark'
+                    ? 'Midnight Slate (#0B0D12) · Figma Dark'
+                    : 'System Automatic'}
+                </ThemedText>
+              </View>
+
+              <View style={[styles.themePillGroup, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                {[
+                  { key: 'light', label: 'Light', icon: '☼' },
+                  { key: 'dark', label: 'Dark', icon: '☾' },
+                  { key: 'system', label: 'Auto', icon: '⚙' },
+                ].map((item) => {
+                  const isSelected = (theme.themeMode || 'system') === item.key;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => theme.setThemeMode?.(item.key)}
+                      style={[
+                        styles.themePillBtn,
+                        isSelected && { backgroundColor: theme.primary },
+                      ]}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.themePillText,
+                          { color: isSelected ? '#FFFFFF' : theme.textSecondary },
+                        ]}
+                      >
+                        {item.icon} {item.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </ThemedCard>
+
           {/* Privacy Controls */}
-          <SectionHeader title="Profile Privacy" />
+          <SectionHeader title="Profile Privacy" style={{ marginTop: Spacing.md }} />
           <ThemedCard variant="outlined" style={styles.settingsCard}>
             <Pressable
               onPress={() => handleTogglePrivacy('is_discoverable', profile?.is_discoverable)}
@@ -770,6 +917,38 @@ export default function ProfileScreen() {
                 </ThemedText>
               </View>
             </Pressable>
+          </ThemedCard>
+
+          {/* Blocked Users */}
+          <SectionHeader title="Safety & Blocked Users" style={{ marginTop: Spacing.md }} />
+          <ThemedCard variant="outlined" style={styles.settingsCard}>
+            {blockedUsers.length > 0 ? (
+              blockedUsers.map((b, idx) => (
+                <View
+                  key={b.id || idx}
+                  style={[styles.blockedRow, idx > 0 && { borderTopWidth: Borders.thin, borderColor: theme.border }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <ThemedText type="bodySmallStrong">{b.blocked?.name || 'Blocked Student'}</ThemedText>
+                    <ThemedText type="caption" color="textSecondary">
+                      @{b.blocked?.username || 'user'}
+                    </ThemedText>
+                  </View>
+                  <ThemedButton
+                    title="Unblock"
+                    size="sm"
+                    variant="outline"
+                    onPress={() => handleUnblock(b.blocked_id || b.blocked?.id)}
+                  />
+                </View>
+              ))
+            ) : (
+              <View style={{ padding: Spacing.sm }}>
+                <ThemedText type="caption" color="textSecondary">
+                  No students are currently blocked.
+                </ThemedText>
+              </View>
+            )}
           </ThemedCard>
 
           {/* Legal & Data Rights */}
@@ -1064,5 +1243,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.xs,
+  },
+  themeSelectorContainer: {
+    padding: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  themePillGroup: {
+    flexDirection: 'row',
+    borderRadius: Radius.button,
+    borderWidth: Borders.thin,
+    padding: 3,
+    gap: 4,
+    marginTop: 4,
+  },
+  themePillBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: Radius.button - 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  suggestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: Radius.xs,
+    backgroundColor: 'rgba(232, 117, 50, 0.08)',
+  },
+  avatarActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  blockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
 });

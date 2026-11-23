@@ -1,9 +1,11 @@
 /**
  * Mova Task Filter and Search Bar Component
  *
- * Provides responsive status view filters (All, Pending, Upcoming, Completed),
- * search text input with icon, category pills with refined dot badges,
- * and priority filters.
+ * Matches Figma 02 · Tasks filter pills:
+ * - Rounded pill chips (radius 50px, px 11 py 7)
+ * - Active pill: Mova Orange (#EA580C / #FF7A29) with white text
+ * - Inactive pills: Card surface (#FFFFFF / #1A202E) with slate text (#8B8179 / #A5A8B3)
+ * - Search bar with clean inline text input
  */
 
 import React from 'react';
@@ -13,30 +15,13 @@ import { MovaIcon } from '@/components/mova-icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedTextInput } from '@/components/themed-text-input';
 import { useTheme } from '@/hooks/use-theme';
-import { Borders, Radius, Spacing } from '@/theme';
+import { Radius, Spacing } from '@/theme';
 
-const STATUS_OPTIONS = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All tasks' },
+  { key: 'today', label: 'Today' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'completed', label: 'Completed' },
-];
-
-const CATEGORY_OPTIONS = [
-  { key: 'all', label: 'All Categories' },
-  { key: 'academic', label: 'Academic', dot: '#C8420B' },
-  { key: 'personal', label: 'Personal', dot: '#2563EB' },
-  { key: 'work', label: 'Work', dot: '#7C3AED' },
-  { key: 'health', label: 'Health', dot: '#059669' },
-  { key: 'other', label: 'General', dot: '#64748B' },
-];
-
-const PRIORITY_OPTIONS = [
-  { key: 'all', label: 'All Priorities' },
-  { key: 'urgent', label: 'Urgent', dot: '#DC2626' },
-  { key: 'high', label: 'High', dot: '#EA580C' },
-  { key: 'medium', label: 'Medium', dot: '#D97706' },
-  { key: 'low', label: 'Low', dot: '#94A3B8' },
 ];
 
 export function TaskFilterBar({
@@ -46,63 +31,48 @@ export function TaskFilterBar({
   onStatusChange,
   categoryFilter,
   onCategoryChange,
-  priorityFilter,
-  onPriorityChange,
-  onClearFilters,
   style,
 }) {
   const theme = useTheme();
 
-  const hasActiveFilters =
-    Boolean(searchQuery) ||
-    statusFilter !== 'all' ||
-    (categoryFilter && categoryFilter !== 'all') ||
-    (priorityFilter && priorityFilter !== 'all');
-
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-        style,
-      ]}>
-      {/* Search Bar */}
-      <ThemedTextInput
-        placeholder="Search tasks by title or notes..."
-        value={searchQuery}
-        onChangeText={onSearchChange}
-        style={styles.searchInput}
-      />
+    <View style={[styles.container, style]}>
+      {/* Search Input */}
+      {typeof searchQuery === 'string' && (
+        <ThemedTextInput
+          placeholder="Search tasks..."
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          style={styles.searchInput}
+        />
+      )}
 
-      {/* Status Segment Control */}
-      <View
-        style={[
-          styles.segmentContainer,
-          { backgroundColor: theme.background, borderColor: theme.border },
-        ]}>
-        {STATUS_OPTIONS.map((opt) => {
-          const isSelected = statusFilter === opt.key;
+      {/* Filter Chips Row matching Figma */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsScroll}>
+        {STATUS_FILTERS.map((opt) => {
+          const isSelected = (statusFilter || 'all') === opt.key;
           return (
             <Pressable
               key={opt.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: isSelected }}
-              hitSlop={4}
+              hitSlop={6}
               onPress={() => onStatusChange?.(opt.key)}
               style={({ pressed }) => [
-                styles.segmentItem,
+                styles.chip,
                 {
-                  backgroundColor: isSelected ? theme.primary : 'transparent',
+                  backgroundColor: isSelected ? theme.primary : theme.surface,
                 },
-                pressed && { opacity: 0.8 },
+                pressed && { opacity: 0.85 },
               ]}>
               <ThemedText
-                type="caption"
                 style={[
-                  styles.segmentText,
+                  styles.chipText,
                   {
-                    color: isSelected ? theme.primaryText : theme.textSecondary,
-                    fontWeight: isSelected ? '700' : '500',
+                    color: isSelected ? '#FFFFFF' : theme.textSecondary,
                   },
                 ]}>
                 {opt.label}
@@ -110,108 +80,6 @@ export function TaskFilterBar({
             </Pressable>
           );
         })}
-      </View>
-
-      {/* Horizontal Scroll for Category Pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsScrollContent}
-        style={styles.chipsScroll}>
-        {CATEGORY_OPTIONS.map((cat) => {
-          const isSelected = (categoryFilter || 'all') === cat.key;
-          return (
-            <Pressable
-              key={cat.key}
-              accessibilityRole="button"
-              hitSlop={6}
-              onPress={() => onCategoryChange?.(cat.key === 'all' ? null : cat.key)}
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  backgroundColor: isSelected ? theme.primarySubtle : theme.surface,
-                  borderColor: isSelected ? theme.primary : theme.border,
-                },
-                pressed && { opacity: 0.8 },
-              ]}>
-              {cat.dot && (
-                <View style={[styles.dotIndicator, { backgroundColor: cat.dot }]} />
-              )}
-              <ThemedText
-                type="caption"
-                style={[
-                  styles.chipText,
-                  {
-                    color: isSelected ? theme.primary : theme.textSecondary,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}>
-                {cat.label}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-
-        {/* Separator */}
-        <View style={[styles.chipDivider, { backgroundColor: theme.border }]} />
-
-        {/* Priority Filter Chips */}
-        {PRIORITY_OPTIONS.map((prio) => {
-          const isSelected = (priorityFilter || 'all') === prio.key;
-          return (
-            <Pressable
-              key={prio.key}
-              accessibilityRole="button"
-              hitSlop={6}
-              onPress={() => onPriorityChange?.(prio.key === 'all' ? null : prio.key)}
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  backgroundColor: isSelected ? theme.primarySubtle : theme.surface,
-                  borderColor: isSelected ? theme.primary : theme.border,
-                },
-                pressed && { opacity: 0.8 },
-              ]}>
-              {prio.dot && (
-                <View style={[styles.dotIndicator, { backgroundColor: prio.dot }]} />
-              )}
-              <ThemedText
-                type="caption"
-                style={[
-                  styles.chipText,
-                  {
-                    color: isSelected ? theme.primary : theme.textSecondary,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}>
-                {prio.label}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-
-        {/* Clear Filters Button */}
-        {hasActiveFilters && onClearFilters && (
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={6}
-            onPress={onClearFilters}
-            style={({ pressed }) => [
-              styles.chip,
-              {
-                backgroundColor: theme.errorBackground,
-                borderColor: theme.error,
-              },
-              pressed && { opacity: 0.8 },
-            ]}>
-            <MovaIcon name="x" size={12} color={theme.error} />
-            <ThemedText
-              type="caption"
-              style={[styles.chipText, { color: theme.error, fontWeight: '700' }]}>
-              Reset
-            </ThemedText>
-          </Pressable>
-        )}
       </ScrollView>
     </View>
   );
@@ -219,63 +87,28 @@ export function TaskFilterBar({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: Spacing.sm,
-    padding: Spacing.sm,
-    borderRadius: Radius.lg,
-    borderWidth: Borders.thin,
-    gap: Spacing.xs,
+    gap: 8,
+    width: '100%',
   },
   searchInput: {
-    marginBottom: 0,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    padding: 3,
-    gap: 2,
-    borderRadius: Radius.md,
-    borderWidth: Borders.thin,
-  },
-  segmentItem: {
-    flex: 1,
-    minHeight: 32,
-    paddingVertical: 5,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentText: {
-    fontSize: 12,
+    marginBottom: 4,
   },
   chipsScroll: {
-    marginTop: 2,
-  },
-  chipsScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7, // Figma gap 7px
     paddingVertical: 2,
   },
   chip: {
-    minHeight: 30,
-    flexDirection: 'row',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: Radius.full, // Figma rounded-[50px]
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    borderWidth: Borders.thin,
-    gap: 5,
-  },
-  dotIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius.full,
+    justifyContent: 'center',
   },
   chipText: {
-    fontSize: 12,
-  },
-  chipDivider: {
-    width: 1,
-    height: 18,
-    marginHorizontal: 4,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '600',
   },
 });
